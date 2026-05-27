@@ -19,12 +19,6 @@ export default auth((req: NextRequest & { auth: { user?: { role?: string } } | n
     return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname.startsWith("/admin")) {
-    if (req.auth?.user?.role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/projects", req.url));
-    }
-  }
-
   return NextResponse.next();
 });
 
