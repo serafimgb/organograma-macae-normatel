@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -47,12 +46,11 @@ export function Sidebar({ projects, userRole, userName }: SidebarProps) {
         className="flex h-16 items-center justify-center px-4 border-b"
         style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "#142814" }}
       >
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="/logo-branco.png"
           alt="Normatel Engenharia"
-          width={148}
-          height={48}
-          className="object-contain"
+          className="object-contain h-12"
         />
       </div>
 
