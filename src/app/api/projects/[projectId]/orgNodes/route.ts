@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { requirePermission } from "@/lib/permissions";
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { projectId: string } }
+) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const canEdit = await requirePermission(
+    { userId: session.user.id, role: session.user.role, projectId: params.projectId },
+    "edit"
+  );
+  if (!canEdit) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { nodes, edges } = await req.json();
+
+  // Build parent map from edges
+  const parentMap = new Map<string, string>();
+  for (const edge of edges ?? []) {
+    parentMap.set(edge.target, edge.source);
+  }
+
+  // Delete nodes that no longer exist in the saved layout
+  const nodeIds = (nodes ?? []).map((n: any) => n.id as string);
+  if (nodeIds.length > 0) {
+    await db.orgNode.deleteMany({
+      where: { projectId: params.projectId, id: { notIn: nodeIds } },
+    });
+  }
+
+  // Upsert each node
+  for (const node of nodes ?? []) {
+    // parentId vem de:
+    // 1. edge desenhado pelo usuário (parentMap)
+    // 2. parentId do ReactFlow (subflow — nó filho de um container)
+    const edgeParent = parentMap.get(node.id) as string | undefined;
+    const reactFlowParent = (node as any).parentId as string | undefined;
+    const dbParentId = edgeParent ?? reactFlowParent ?? null;
+
+    await db.orgNode.upsert({
+      where: { id: node.id },
+      create: {
+        id: node.id,
+        projectId: params.projectId,
+        label: node.data?.label ?? "",
+        positionX: node.position?.x ?? 0,
+        positionY: node.position?.y ?? 0,
+        parentId: dbParentId,
+        employeeId: (node.data?.employeeId as string) ?? null,
+        displayNome: (node.data?.displayNome as string) ?? null,
+        comment: (node.data?.comment as string) ?? null,
+        isGroup: (node.data?.isGroup as boolean) ?? false,
+      },
+      update: {
+        label: node.data?.label ?? "",
+        positionX: node.position?.x ?? 0,
+        positionY: node.position?.y ?? 0,
+        parentId: dbParentId,
+        displayNome: (node.data?.displayNome as string) ?? null,
+        comment: (node.data?.comment as string) ?? null,
+      },
+    });
+  }
+
+  return NextResponse.json({ ok: true });
+}

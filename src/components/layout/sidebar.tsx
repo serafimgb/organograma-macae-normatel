@@ -1,0 +1,158 @@
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  Users,
+  GitFork,
+  FolderKanban,
+  Upload,
+  LogOut,
+  ChevronDown,
+  UserCircle2,
+} from "lucide-react";
+import { signOut } from "next-auth/react";
+import { useState } from "react";
+
+interface Project {
+  code: string;
+  name: string;
+}
+
+interface SidebarProps {
+  projects: Project[];
+  userRole: string;
+  userName?: string | null;
+}
+
+const projectLinks = (code: string) => [
+  { href: `/projects/${code}/dashboard`, label: "Dashboard", icon: LayoutDashboard },
+  { href: `/projects/${code}/organograma`, label: "Organograma", icon: GitFork },
+  { href: `/projects/${code}/efetivo`, label: "Efetivo", icon: Users },
+];
+
+export function Sidebar({ projects, userRole, userName }: SidebarProps) {
+  const pathname = usePathname();
+  const [expandedProject, setExpandedProject] = useState<string | null>(
+    projects[0]?.code ?? null
+  );
+
+  return (
+    <aside className="flex h-screen w-60 flex-col text-white" style={{ backgroundColor: "#1a3a1a" }}>
+      {/* Header com logo branca */}
+      <div
+        className="flex h-16 items-center justify-center px-4 border-b"
+        style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "#142814" }}
+      >
+        <Image
+          src="/logo-branco.png"
+          alt="Normatel Engenharia"
+          width={148}
+          height={48}
+          className="object-contain"
+        />
+      </div>
+
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+        {projects.map((project) => {
+          const isExpanded = expandedProject === project.code;
+          const isActive = projectLinks(project.code).some((l) => pathname === l.href);
+
+          return (
+            <div key={project.code}>
+              <button
+                onClick={() => setExpandedProject(isExpanded ? null : project.code)}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-white/15 text-white"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                )}
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <FolderKanban className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{project.code} — {project.name}</span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-transform text-white/50",
+                    isExpanded && "rotate-180"
+                  )}
+                />
+              </button>
+
+              {isExpanded && (
+                <div className="ml-3 mt-0.5 space-y-0.5 pl-3 border-l" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
+                  {projectLinks(project.code).map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={cn(
+                        "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                        pathname === href
+                          ? "text-white font-semibold"
+                          : "text-white/60 hover:text-white hover:bg-white/10"
+                      )}
+                      style={pathname === href ? {
+                        backgroundColor: "#4caf50",
+                        boxShadow: "0 1px 4px rgba(76,175,80,0.4)"
+                      } : {}}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {userRole === "ADMIN" && (
+          <>
+            <div className="pt-4 pb-1 px-3 text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>
+              Administração
+            </div>
+            {[
+              { href: "/admin/users", label: "Usuários & Permissões", icon: Users },
+              { href: "/admin/import", label: "Importar Excel", icon: Upload },
+            ].map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                  pathname === href
+                    ? "text-white font-semibold"
+                    : "text-white/60 hover:text-white hover:bg-white/10"
+                )}
+                style={pathname === href ? { backgroundColor: "#4caf50" } : {}}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </Link>
+            ))}
+          </>
+        )}
+      </nav>
+
+      {/* Footer do usuário */}
+      <div className="border-t p-3 space-y-1" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+        <div className="flex items-center gap-2 px-2 py-1">
+          <UserCircle2 className="h-5 w-5 shrink-0 text-white/40" />
+          <span className="text-xs text-white/60 truncate">{userName}</span>
+        </div>
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-white/50 hover:bg-white/10 hover:text-white transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Sair
+        </button>
+      </div>
+    </aside>
+  );
+}

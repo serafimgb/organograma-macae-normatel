@@ -1,0 +1,201 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── NextAuth required models ──────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Application models ────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+enum Situacao {
+  ATIVO
+  DESLIGADO
+  AFASTADO
+  FERIAS
+  LICENCA
+}
+
+enum Scope {
+  ALL
+  CARTEIRA
+  BASE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  role          Role      @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts    Account[]
+  sessions    Session[]
+  permissions Permission[]
+  auditLogs   AuditLog[]
+}
+
+model Project {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  description String?
+
+  carteiras   Carteira[]
+  bases       Base[]
+  employees   Employee[]
+  orgNodes    OrgNode[]
+  permissions Permission[]
+}
+
+model Carteira {
+  id        String @id @default(cuid())
+  name      String
+  projectId String
+
+  project     Project      @relation(fields: [projectId], references: [id])
+  employees   Employee[]
+  permissions Permission[] @relation("PermissionCarteira")
+
+  @@unique([name, projectId])
+}
+
+model Base {
+  id        String @id @default(cuid())
+  name      String
+  projectId String
+
+  project     Project      @relation(fields: [projectId], references: [id])
+  employees   Employee[]
+  permissions Permission[] @relation("PermissionBase")
+
+  @@unique([name, projectId])
+}
+
+model Funcao {
+  id   String @id @default(cuid())
+  name String @unique
+
+  employees Employee[]
+}
+
+model Employee {
+  id         String    @id @default(cuid())
+  chapa      String
+  nome       String
+  cpf        String?
+  funcaoId   String
+  projectId  String
+  carteiraId String?
+  baseId     String?
+  admissao   DateTime
+  demissao   DateTime?
+  situacao   Situacao  @default(ATIVO)
+  salary     Decimal?  @db.Decimal(10, 2)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  funcao   Funcao    @relation(fields: [funcaoId], references: [id])
+  project  Project   @relation(fields: [projectId], references: [id])
+  carteira Carteira? @relation(fields: [carteiraId], references: [id])
+  base     Base?     @relation(fields: [baseId], references: [id])
+  orgNodes OrgNode[]
+
+  @@unique([chapa, projectId])
+}
+
+model OrgNode {
+  id          String  @id @default(cuid())
+  projectId   String
+  employeeId  String?
+  parentId    String?
+  positionX   Float   @default(0)
+  positionY   Float   @default(0)
+  label       String
+  displayNome String?
+  comment     String? @db.Text
+  isGroup     Boolean @default(false)
+
+  project  Project   @relation(fields: [projectId], references: [id])
+  employee Employee? @relation(fields: [employeeId], references: [id])
+  parent   OrgNode?  @relation("OrgNodeChildren", fields: [parentId], references: [id])
+  children OrgNode[] @relation("OrgNodeChildren")
+}
+
+model Permission {
+  id            String  @id @default(cuid())
+  userId        String
+  projectId     String
+  canViewSalary Boolean @default(false)
+  canEdit       Boolean @default(false)
+  scope         Scope   @default(ALL)
+  scopeRefId    String?
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id])
+  carteiraRef Carteira? @relation("PermissionCarteira", fields: [scopeRefId], references: [id], map: "Permission_carteiraRef_fkey")
+  baseRef     Base?     @relation("PermissionBase", fields: [scopeRefId], references: [id], map: "Permission_baseRef_fkey")
+
+  @@unique([userId, projectId, scope, scopeRefId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  changes    Json
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
