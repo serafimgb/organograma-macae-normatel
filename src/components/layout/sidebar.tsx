@@ -12,36 +12,59 @@ import {
   LogOut,
   ChevronDown,
   UserCircle2,
+  DollarSign,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 
 interface Project {
+  id: string;
   code: string;
   name: string;
 }
+
+type TabFlags = {
+  dashboard: boolean;
+  organograma: boolean;
+  efetivo: boolean;
+  salarios: boolean;
+};
 
 interface SidebarProps {
   projects: Project[];
   userRole: string;
   userName?: string | null;
+  tabMap: Record<string, TabFlags> | null;
 }
 
-const projectLinks = (code: string) => [
-  { href: `/projects/${code}/dashboard`, label: "Dashboard", icon: LayoutDashboard },
-  { href: `/projects/${code}/organograma`, label: "Organograma", icon: GitFork },
-  { href: `/projects/${code}/efetivo`, label: "Efetivo", icon: Users },
-];
-
-export function Sidebar({ projects, userRole, userName }: SidebarProps) {
+export function Sidebar({ projects, userRole, userName, tabMap }: SidebarProps) {
   const pathname = usePathname();
   const [expandedProject, setExpandedProject] = useState<string | null>(
     projects[0]?.code ?? null
   );
 
+  const projectLinks = (code: string, projectId: string) => {
+    const flags = tabMap?.[projectId];
+    const links = [];
+
+    if (!flags || flags.dashboard) {
+      links.push({ href: `/projects/${code}/dashboard`, label: "Dashboard", icon: LayoutDashboard });
+    }
+    if (!flags || flags.organograma) {
+      links.push({ href: `/projects/${code}/organograma`, label: "Organograma", icon: GitFork });
+    }
+    if (!flags || flags.efetivo) {
+      links.push({ href: `/projects/${code}/efetivo`, label: "Efetivo", icon: Users });
+    }
+    if (flags?.salarios) {
+      links.push({ href: `/projects/${code}/salarios`, label: "Salários", icon: DollarSign });
+    }
+
+    return links;
+  };
+
   return (
     <aside className="flex h-screen w-60 flex-col text-white" style={{ backgroundColor: "#1a3a1a" }}>
-      {/* Header com logo branca */}
       <div
         className="flex h-16 items-center justify-center px-4 border-b"
         style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "#142814" }}
@@ -57,7 +80,8 @@ export function Sidebar({ projects, userRole, userName }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {projects.map((project) => {
           const isExpanded = expandedProject === project.code;
-          const isActive = projectLinks(project.code).some((l) => pathname === l.href);
+          const links = projectLinks(project.code, project.id);
+          const isActive = links.some((l) => pathname === l.href);
 
           return (
             <div key={project.code}>
@@ -84,7 +108,7 @@ export function Sidebar({ projects, userRole, userName }: SidebarProps) {
 
               {isExpanded && (
                 <div className="ml-3 mt-0.5 space-y-0.5 pl-3 border-l" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
-                  {projectLinks(project.code).map(({ href, label, icon: Icon }) => (
+                  {links.map(({ href, label, icon: Icon }) => (
                     <Link
                       key={href}
                       href={href}
@@ -137,7 +161,6 @@ export function Sidebar({ projects, userRole, userName }: SidebarProps) {
         )}
       </nav>
 
-      {/* Footer do usuário */}
       <div className="border-t p-3 space-y-1" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
         <div className="flex items-center gap-2 px-2 py-1">
           <UserCircle2 className="h-5 w-5 shrink-0 text-white/40" />

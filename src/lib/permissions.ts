@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 
 type Role = "ADMIN" | "MANAGER" | "VIEWER";
 type Action = "view" | "edit" | "viewSalary";
+type Tab = "dashboard" | "organograma" | "efetivo";
 
 interface PermissionContext {
   userId: string;
@@ -18,10 +19,6 @@ interface DbPermission {
   canViewSalary: boolean;
 }
 
-/**
- * Verifica se o usuário tem permissão para uma ação num projeto.
- * ADMINs têm acesso total. MANAGERs e VIEWERs dependem da tabela Permission.
- */
 export async function requirePermission(ctx: PermissionContext, action: Action): Promise<boolean> {
   if (ctx.role === "ADMIN") return true;
 
@@ -48,9 +45,6 @@ export async function requirePermission(ctx: PermissionContext, action: Action):
   return false;
 }
 
-/**
- * Retorna os projectIds que o usuário pode acessar.
- */
 export async function getAccessibleProjectIds(userId: string, role: Role): Promise<string[]> {
   if (role === "ADMIN") {
     const projects: { id: string }[] = await db.project.findMany({ select: { id: true } });
@@ -65,17 +59,46 @@ export async function getAccessibleProjectIds(userId: string, role: Role): Promi
   return perms.map((p) => p.projectId);
 }
 
-/**
- * Verifica se o usuário pode ver salários em qualquer escopo do projeto.
- */
+/** LGPD: sem bypass para ADMIN — todos precisam de permissão explícita */
 export async function canViewSalaryInProject(
   userId: string,
-  role: Role,
+  _role: Role,
   projectId: string
 ): Promise<boolean> {
-  if (role === "ADMIN") return true;
   const perm = await db.permission.findFirst({
     where: { userId, projectId, canViewSalary: true },
+  });
+  return !!perm;
+}
+
+/** Visibilidade de aba por projeto. ADMIN vê tudo. Outros: checa flag na Permission ALL. */
+export async function canViewTab(
+  userId: string,
+  role: Role,
+  projectId: string,
+  tab: Tab
+): Promise<boolean> {
+  if (role === "ADMIN") return true;
+
+  const perm = await db.permission.findFirst({
+    where: { userId, projectId, scope: "ALL" },
+    select: { canViewDashboard: true, canViewOrganograma: true, canViewEfetivo: true },
+  });
+  if (!perm) return false;
+
+  if (tab === "dashboard") return perm.canViewDashboard;
+  if (tab === "organograma") return perm.canViewOrganograma;
+  if (tab === "efetivo") return perm.canViewEfetivo;
+  return false;
+}
+
+/** Verifica se o usuário é gestor de salários nesse projeto */
+export async function isSalaryManagerInProject(
+  userId: string,
+  projectId: string
+): Promise<boolean> {
+  const perm = await db.permission.findFirst({
+    where: { userId, projectId, isSalaryManager: true },
   });
   return !!perm;
 }

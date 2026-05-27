@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePermission, canViewTab } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -24,6 +24,9 @@ export default async function DashboardPage({ params }: { params: { code: string
     "view"
   );
   if (!hasAccess) redirect("/projects");
+
+  const tabOk = await canViewTab(session.user.id, session.user.role, project.id, "dashboard");
+  if (!tabOk) redirect("/projects");
 
   const allEmployees = await db.employee.findMany({
     where: { projectId: project.id },

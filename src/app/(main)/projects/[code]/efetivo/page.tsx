@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import type { Prisma, Situacao } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { requirePermission, canViewSalaryInProject } from "@/lib/permissions";
+import { requirePermission, canViewSalaryInProject, canViewTab } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { EfetivoTable } from "@/components/efetivo/efetivo-table";
 
@@ -44,6 +44,9 @@ export default async function EfetivoPage({
     "view"
   );
   if (!hasAccess) redirect("/projects");
+
+  const tabOk = await canViewTab(session.user.id, session.user.role, project.id, "efetivo");
+  if (!tabOk) redirect("/projects");
 
   const showSalary = await canViewSalaryInProject(session.user.id, session.user.role, project.id);
 

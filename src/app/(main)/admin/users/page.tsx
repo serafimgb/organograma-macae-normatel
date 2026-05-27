@@ -1,47 +1,68 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { isSalaryManagerInProject } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { UserEditDialog } from "@/components/admin/user-edit-dialog";
+import { SalaryAccessManager } from "@/components/admin/salary-access-manager";
 
 type Role = "ADMIN" | "MANAGER" | "VIEWER";
-
 const roleBadge: Record<Role, { label: string; variant: "default" | "secondary" | "outline" }> = {
   ADMIN: { label: "Admin", variant: "default" },
   MANAGER: { label: "Gerente", variant: "secondary" },
   VIEWER: { label: "Visualizador", variant: "outline" },
 };
 
-interface Permission {
-  canViewSalary: boolean;
-  canEdit: boolean;
-  project: { code: string; name: string };
-}
-
-interface User {
-  id: string;
-  name: string | null;
-  email: string;
-  role: Role;
-  permissions: Permission[];
-}
-
 export default async function AdminUsersPage() {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") redirect("/projects");
 
-  const users: User[] = await db.user.findMany({
-    include: {
-      permissions: {
-        include: { project: { select: { code: true, name: true } } },
+  const [users, projects] = await Promise.all([
+    db.user.findMany({
+      include: {
+        permissions: {
+          where: { scope: "ALL" },
+          include: { project: { select: { id: true, code: true, name: true } } },
+        },
       },
-    },
-    orderBy: { createdAt: "asc" },
-  });
+      orderBy: { createdAt: "asc" },
+    }),
+    db.project.findMany({
+      select: { id: true, code: true, name: true },
+      orderBy: { code: "asc" },
+    }),
+  ]);
+
+  type ManagedProject = { id: string; code: string; name: string; users: { id: string; name: string | null; email: string; canViewSalary: boolean }[] };
+
+  // Verifica se o usuário atual é gestor de salários em algum projeto
+  const managedProjects = await Promise.all(
+    projects.map(async (proj): Promise<ManagedProject | null> => {
+      const isManager = await isSalaryManagerInProject(session.user.id, proj.id);
+      if (!isManager) return null;
+
+      const projectUsers = await db.user.findMany({
+        where: { id: { not: session.user.id }, permissions: { some: { projectId: proj.id } } },
+        select: {
+          id: true, name: true, email: true,
+          permissions: { where: { projectId: proj.id, canViewSalary: true }, select: { id: true } },
+        },
+      });
+
+      return {
+        ...proj,
+        users: projectUsers.map((u) => ({
+          id: u.id, name: u.name, email: u.email, canViewSalary: u.permissions.length > 0,
+        })),
+      };
+    })
+  );
+  const salaryProjects = managedProjects.filter((p): p is ManagedProject => p !== null);
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-8 space-y-8 max-w-5xl">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Usuários & Permissões</h1>
         <p className="text-sm text-muted-foreground">{users.length} usuários cadastrados</p>
@@ -58,19 +79,22 @@ export default async function AdminUsersPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>E-mail</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Projetos com acesso</TableHead>
-                <TableHead>Pode ver salário</TableHead>
-                <TableHead>Pode editar</TableHead>
+                <TableHead>Projetos</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => {
-                const rb = roleBadge[user.role];
-                const projectsWithSalary = user.permissions.filter((p) => p.canViewSalary);
-                const projectsWithEdit = user.permissions.filter((p) => p.canEdit);
-                const uniqueProjectCodes = Array.from(new Set(user.permissions.map((p) => p.project.code)));
-                const salaryProjectCodes = Array.from(new Set(projectsWithSalary.map((p) => p.project.code)));
-                const editProjectCodes = Array.from(new Set(projectsWithEdit.map((p) => p.project.code)));
+              {users.map((user: typeof users[number]) => {
+                const rb = roleBadge[user.role as Role];
+                const projectCodes: string[] = [...new Set(user.permissions.map((p) => p.project.code))];
+                const userPerms = user.permissions.map((p: typeof user.permissions[number]) => ({
+                  projectId: p.project.id,
+                  canViewDashboard: p.canViewDashboard,
+                  canViewOrganograma: p.canViewOrganograma,
+                  canViewEfetivo: p.canViewEfetivo,
+                  canEdit: p.canEdit,
+                  isSalaryManager: p.isSalaryManager,
+                }));
 
                 return (
                   <TableRow key={user.id}>
@@ -83,10 +107,10 @@ export default async function AdminUsersPage() {
                       <div className="flex flex-wrap gap-1">
                         {user.role === "ADMIN" ? (
                           <Badge variant="default">Todos</Badge>
-                        ) : uniqueProjectCodes.length === 0 ? (
+                        ) : projectCodes.length === 0 ? (
                           <span className="text-xs text-muted-foreground">Nenhum</span>
                         ) : (
-                          uniqueProjectCodes.map((code) => (
+                          projectCodes.map((code) => (
                             <Badge key={code} variant="outline" className="font-mono text-xs">
                               #{code}
                             </Badge>
@@ -94,35 +118,15 @@ export default async function AdminUsersPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {user.role === "ADMIN" ? (
-                        <Badge variant="success">Todos</Badge>
-                      ) : salaryProjectCodes.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {salaryProjectCodes.map((code) => (
-                            <Badge key={code} variant="success" className="text-xs font-mono">
-                              #{code}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Não</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {user.role === "ADMIN" ? (
-                        <Badge variant="success">Todos</Badge>
-                      ) : editProjectCodes.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {editProjectCodes.map((code) => (
-                            <Badge key={code} variant="secondary" className="text-xs font-mono">
-                              #{code}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Não</span>
-                      )}
+                    <TableCell className="text-right">
+                      <UserEditDialog
+                        userId={user.id}
+                        userName={user.name}
+                        userEmail={user.email}
+                        userRole={user.role as Role}
+                        permissions={userPerms}
+                        projects={projects}
+                      />
                     </TableCell>
                   </TableRow>
                 );
@@ -131,6 +135,10 @@ export default async function AdminUsersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {salaryProjects.length > 0 && (
+        <SalaryAccessManager managedProjects={salaryProjects} />
+      )}
     </div>
   );
 }

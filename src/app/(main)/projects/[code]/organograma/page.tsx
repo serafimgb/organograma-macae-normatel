@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePermission, canViewTab } from "@/lib/permissions";
 import { OrgFlowEditor } from "@/components/organograma/org-flow-editor";
 import type { Node, Edge } from "@xyflow/react";
 
@@ -30,6 +30,9 @@ export default async function OrganoGramaPage({ params }: { params: { code: stri
     "view"
   );
   if (!hasAccess) redirect("/projects");
+
+  const tabOk = await canViewTab(session.user.id, session.user.role, project.id, "organograma");
+  if (!tabOk) redirect("/projects");
 
   const canEdit = await requirePermission(
     { userId: session.user.id, role: session.user.role, projectId: project.id },
