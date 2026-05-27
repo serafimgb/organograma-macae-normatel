@@ -1,6 +1,5 @@
 import { signIn } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 
 export default function LoginPage({
   searchParams,
@@ -16,12 +15,11 @@ export default function LoginPage({
         className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12"
         style={{ background: "linear-gradient(145deg, #2d7a2d 0%, #1a4f1a 100%)" }}
       >
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="/logo-branco.png"
           alt="Normatel Engenharia"
-          width={320}
-          height={120}
-          className="object-contain mb-10"
+          className="object-contain mb-10 w-80"
         />
         <p className="text-white/80 text-lg font-light text-center max-w-xs leading-relaxed">
           Gestão de projetos, organogramas e efetivo em um único lugar.
@@ -44,12 +42,11 @@ export default function LoginPage({
       <div className="flex-1 flex flex-col items-center justify-center p-8">
         {/* Logo mobile */}
         <div className="lg:hidden mb-10">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src="/logo-horizontal.png"
             alt="Normatel Engenharia"
-            width={200}
-            height={70}
-            className="object-contain"
+            className="object-contain w-52"
           />
         </div>
 
