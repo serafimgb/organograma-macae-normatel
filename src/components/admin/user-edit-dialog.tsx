@@ -26,12 +26,12 @@ interface UserEditDialogProps {
   userId: string;
   userName: string | null;
   userEmail: string;
-  userRole: "ADMIN" | "MANAGER" | "VIEWER";
+  userRole: "Admin" | "Gestor" | "Visualizador";
   permissions: UserPerm[];
   projects: Project[];
 }
 
-const ROLES = ["ADMIN", "MANAGER", "VIEWER"] as const;
+const ROLES = ["Admin", "Gestor", "Visualizador"] as const;
 type Role = typeof ROLES[number];
 
 export function UserEditDialog({
@@ -78,6 +78,8 @@ export function UserEditDialog({
     }));
   };
 
+  const roleToDb: Record<Role, string> = { Admin: "ADMIN", Gestor: "MANAGER", Visualizador: "VIEWER" };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -86,7 +88,7 @@ export function UserEditDialog({
       await fetch(`/api/admin/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
+        body: JSON.stringify({ role: roleToDb[role] }),
       }).then((r) => { if (!r.ok) throw new Error("Erro ao salvar role"); });
 
       // 2. Atualiza permissões por projeto

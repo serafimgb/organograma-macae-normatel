@@ -9,10 +9,18 @@ import { UserEditDialog } from "@/components/admin/user-edit-dialog";
 import { SalaryAccessManager } from "@/components/admin/salary-access-manager";
 
 type Role = "ADMIN" | "MANAGER" | "VIEWER";
+type DisplayRole = "Admin" | "Gestor" | "Visualizador";
+
 const roleBadge: Record<Role, { label: string; variant: "default" | "secondary" | "outline" }> = {
   ADMIN: { label: "Admin", variant: "default" },
-  MANAGER: { label: "Gerente", variant: "secondary" },
+  MANAGER: { label: "Gestor", variant: "secondary" },
   VIEWER: { label: "Visualizador", variant: "outline" },
+};
+
+const roleToDisplay: Record<Role, DisplayRole> = {
+  ADMIN: "Admin",
+  MANAGER: "Gestor",
+  VIEWER: "Visualizador",
 };
 
 export default async function AdminUsersPage() {
@@ -123,7 +131,7 @@ export default async function AdminUsersPage() {
                         userId={user.id}
                         userName={user.name}
                         userEmail={user.email}
-                        userRole={user.role as Role}
+                        userRole={roleToDisplay[user.role as Role]}
                         permissions={userPerms}
                         projects={projects}
                       />
