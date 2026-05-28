@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { UserEditDialog } from "@/components/admin/user-edit-dialog";
 import { SalaryAccessManager } from "@/components/admin/salary-access-manager";
 import { UserApprovalDialog } from "@/components/admin/user-approval-dialog";
+import { RejectUserButton } from "@/components/admin/reject-user-button";
 import { Clock } from "lucide-react";
 
 type Role = "ADMIN" | "MANAGER" | "VIEWER";
@@ -140,11 +141,18 @@ export default async function AdminUsersPage() {
                     <TableCell className="font-medium">{user.name ?? "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
                     <TableCell className="text-right">
-                      <UserApprovalDialog
-                        userId={user.id}
-                        userName={user.name}
-                        userEmail={user.email ?? ""}
-                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <RejectUserButton
+                          userId={user.id}
+                          userName={user.name}
+                          userEmail={user.email ?? ""}
+                        />
+                        <UserApprovalDialog
+                          userId={user.id}
+                          userName={user.name}
+                          userEmail={user.email ?? ""}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

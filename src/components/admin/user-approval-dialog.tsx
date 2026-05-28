@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 
 interface Props {
   userId: string;
@@ -44,25 +44,6 @@ export function UserApprovalDialog({ userId, userName, userEmail }: Props) {
     }
   };
 
-  const handleReject = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "REJECTED" }),
-      });
-      if (!res.ok) throw new Error("Erro ao rejeitar usuário");
-      setOpen(false);
-      window.location.reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro desconhecido");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -73,7 +54,7 @@ export function UserApprovalDialog({ userId, userName, userEmail }: Props) {
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Aprovar acesso</DialogTitle>
+          <DialogTitle>Aprovar acesso — {userName ?? userEmail}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 mt-1">
@@ -103,24 +84,16 @@ export function UserApprovalDialog({ userId, userName, userEmail }: Props) {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Após aprovação, configure os projetos e abas que este usuário pode acessar em &quot;Editar&quot;.
+            Após aprovação, configure os projetos e abas em &quot;Editar&quot;.
           </p>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1 gap-1 text-destructive border-destructive/30 hover:bg-destructive/5"
-              onClick={handleReject}
-              disabled={saving}
-            >
-              <XCircle className="h-3.5 w-3.5" />
-              Rejeitar
-            </Button>
-            <Button className="flex-1 gap-1" onClick={handleApprove} disabled={saving}>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button className="gap-1" onClick={handleApprove} disabled={saving}>
               <CheckCircle className="h-3.5 w-3.5" />
-              {saving ? "Salvando..." : "Aprovar"}
+              {saving ? "Aprovando..." : "Confirmar aprovação"}
             </Button>
           </div>
         </div>
