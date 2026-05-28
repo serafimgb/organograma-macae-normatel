@@ -13,11 +13,14 @@ interface EmployeeRow {
   nome: string;
   funcao: string;
   carteira: string;
+  carteiraId: string | null;
   base: string;
+  baseId: string | null;
   situacao: "ATIVO" | "DESLIGADO" | "AFASTADO" | "FERIAS" | "LICENCA";
   admissao: string;
   demissao: string | null;
   salary: number | null;
+  cpf: string | null;
 }
 
 export default async function EfetivoPage({
@@ -48,7 +51,10 @@ export default async function EfetivoPage({
   const tabOk = await canViewTab(session.user.id, session.user.role, project.id, "efetivo");
   if (!tabOk) redirect("/projects");
 
-  const showSalary = await canViewSalaryInProject(session.user.id, session.user.role, project.id);
+  const [showSalary, canEdit] = await Promise.all([
+    canViewSalaryInProject(session.user.id, session.user.role, project.id),
+    requirePermission({ userId: session.user.id, role: session.user.role, projectId: project.id }, "edit"),
+  ]);
 
   const where: Prisma.EmployeeWhereInput = {
     projectId: project.id,
@@ -67,16 +73,19 @@ export default async function EfetivoPage({
       : {}),
   };
 
-  const employees = await db.employee.findMany({
-    where,
-    include: {
-      funcao: { select: { name: true } },
-      carteira: { select: { name: true } },
-      base: { select: { name: true } },
-    },
-    orderBy: { nome: "asc" },
-    take: 500,
-  });
+  const [employees, funcoes] = await Promise.all([
+    db.employee.findMany({
+      where,
+      include: {
+        funcao: { select: { name: true } },
+        carteira: { select: { name: true } },
+        base: { select: { name: true } },
+      },
+      orderBy: { nome: "asc" },
+      take: 500,
+    }),
+    db.funcao.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ]);
 
   const rows: EmployeeRow[] = employees.map((e) => ({
     id: e.id,
@@ -84,11 +93,14 @@ export default async function EfetivoPage({
     nome: e.nome,
     funcao: e.funcao.name,
     carteira: e.carteira?.name ?? "—",
+    carteiraId: e.carteiraId,
     base: e.base?.name ?? "—",
+    baseId: e.baseId,
     situacao: e.situacao as EmployeeRow["situacao"],
     admissao: e.admissao.toISOString(),
     demissao: e.demissao?.toISOString() ?? null,
     salary: showSalary ? (e.salary ? Number(e.salary.toString()) : 0) : null,
+    cpf: e.cpf,
   }));
 
   return (
@@ -106,7 +118,10 @@ export default async function EfetivoPage({
           employees={rows}
           carteiras={project.carteiras}
           bases={project.bases}
+          funcoes={funcoes}
           showSalary={showSalary}
+          canEdit={canEdit}
+          projectId={project.id}
         />
       </Suspense>
     </div>

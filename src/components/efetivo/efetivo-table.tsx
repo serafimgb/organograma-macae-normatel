@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { formatBRL, formatDate } from "@/lib/utils";
 import { Search } from "lucide-react";
+import { EmployeeFormDialog, type EmployeeFormData } from "./employee-form-dialog";
 
 type Situacao = "ATIVO" | "DESLIGADO" | "AFASTADO" | "FERIAS" | "LICENCA";
 
@@ -17,18 +18,24 @@ interface Employee {
   nome: string;
   funcao: string;
   carteira: string;
+  carteiraId: string | null;
   base: string;
+  baseId: string | null;
   situacao: Situacao;
   admissao: string;
   demissao: string | null;
   salary: number | null;
+  cpf: string | null;
 }
 
 interface EfetivoTableProps {
   employees: Employee[];
   carteiras: { id: string; name: string }[];
   bases: { id: string; name: string }[];
+  funcoes: { id: string; name: string }[];
   showSalary: boolean;
+  canEdit: boolean;
+  projectId: string;
 }
 
 const situacaoBadge: Record<Situacao, { label: string; variant: "success" | "destructive" | "warning" | "secondary" }> = {
@@ -39,7 +46,7 @@ const situacaoBadge: Record<Situacao, { label: string; variant: "success" | "des
   LICENCA: { label: "Licença", variant: "secondary" },
 };
 
-export function EfetivoTable({ employees, carteiras, bases, showSalary }: EfetivoTableProps) {
+export function EfetivoTable({ employees, carteiras, bases, funcoes, showSalary, canEdit, projectId }: EfetivoTableProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -58,10 +65,26 @@ export function EfetivoTable({ employees, carteiras, bases, showSalary }: Efetiv
     updateParam("q", search);
   }
 
+  function handleSaved() {
+    router.refresh();
+  }
+
+  const colSpan = showSalary ? (canEdit ? 10 : 9) : canEdit ? 9 : 8;
+
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      {/* Top bar: novo + filtros */}
+      <div className="flex flex-wrap items-center gap-3">
+        {canEdit && (
+          <EmployeeFormDialog
+            projectId={projectId}
+            carteiras={carteiras}
+            bases={bases}
+            funcoes={funcoes}
+            onSaved={handleSaved}
+          />
+        )}
+
         <form onSubmit={handleSearch} className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -134,18 +157,31 @@ export function EfetivoTable({ employees, carteiras, bases, showSalary }: Efetiv
               <TableHead>Admissão</TableHead>
               <TableHead>Demissão</TableHead>
               {showSalary && <TableHead className="text-right">Salário</TableHead>}
+              {canEdit && <TableHead className="w-10" />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {employees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showSalary ? 9 : 8} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={colSpan} className="text-center text-muted-foreground py-8">
                   Nenhum colaborador encontrado
                 </TableCell>
               </TableRow>
             ) : (
               employees.map((emp) => {
                 const sit = situacaoBadge[emp.situacao];
+                const editData: EmployeeFormData = {
+                  id: emp.id,
+                  chapa: emp.chapa,
+                  nome: emp.nome,
+                  funcao: emp.funcao,
+                  carteiraId: emp.carteiraId,
+                  baseId: emp.baseId,
+                  situacao: emp.situacao,
+                  admissao: emp.admissao,
+                  demissao: emp.demissao,
+                  cpf: emp.cpf,
+                };
                 return (
                   <TableRow key={emp.id}>
                     <TableCell className="font-mono text-xs">{emp.chapa}</TableCell>
@@ -161,6 +197,18 @@ export function EfetivoTable({ employees, carteiras, bases, showSalary }: Efetiv
                     {showSalary && (
                       <TableCell className="text-right font-mono text-sm">
                         {formatBRL(emp.salary)}
+                      </TableCell>
+                    )}
+                    {canEdit && (
+                      <TableCell>
+                        <EmployeeFormDialog
+                          projectId={projectId}
+                          carteiras={carteiras}
+                          bases={bases}
+                          funcoes={funcoes}
+                          employee={editData}
+                          onSaved={handleSaved}
+                        />
                       </TableCell>
                     )}
                   </TableRow>

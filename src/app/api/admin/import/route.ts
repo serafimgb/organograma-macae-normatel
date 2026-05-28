@@ -15,13 +15,25 @@ const SIT_MAP: Record<string, Situacao> = {
   FÉRIAS: "FERIAS",
   LICENCA: "LICENCA",
   LICENÇA: "LICENCA",
+  AFAS: "AFASTADO",
+  "FÉR": "FERIAS",
+  FER: "FERIAS",
+  LIC: "LICENCA",
+  DES: "DESLIGADO",
+  AT: "ATIVO",
 };
 
 function parseDate(raw: unknown): Date | null {
   if (!raw) return null;
-  if (raw instanceof Date) return raw;
+  if (raw instanceof Date) return isValid(raw) ? raw : null;
+  const n = Number(raw);
+  if (!isNaN(n) && n > 1000) {
+    // Excel serial date
+    const d = XLSX.SSF.parse_date_code(n);
+    if (d) return new Date(d.y, d.m - 1, d.d);
+  }
   const str = String(raw).trim();
-  for (const fmt of ["dd/MM/yyyy", "dd-MM-yyyy", "yyyy-MM-dd"]) {
+  for (const fmt of ["dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "dd/MM/yy"]) {
     const d = parse(str, fmt, new Date(), { locale: ptBR });
     if (isValid(d)) return d;
   }
@@ -29,7 +41,18 @@ function parseDate(raw: unknown): Date | null {
 }
 
 function normalize(raw: unknown): string {
-  return String(raw ?? "").trim().toUpperCase();
+  return String(raw ?? "").trim().toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+/** Finds column value by trying multiple header aliases (case-insensitive, accent-insensitive) */
+function col(row: Record<string, unknown>, ...aliases: string[]): unknown {
+  const keys = Object.keys(row);
+  for (const alias of aliases) {
+    const aliasNorm = normalize(alias);
+    const found = keys.find((k) => normalize(k) === aliasNorm);
+    if (found !== undefined) return row[found];
+  }
+  return undefined;
 }
 
 export async function POST(req: NextRequest) {
@@ -54,7 +77,7 @@ export async function POST(req: NextRequest) {
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: "array", cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false });
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" });
 
   let created = 0;
   let updated = 0;
@@ -65,16 +88,18 @@ export async function POST(req: NextRequest) {
     const lineNum = i + 2;
 
     try {
-      const chapa = normalize(row["CHAPA"] ?? row["chapa"]);
-      const nome = String(row["NOME"] ?? row["nome"] ?? "").trim();
-      const funcaoName = String(row["FUNÇÃO"] ?? row["FUNCAO"] ?? row["funcao"] ?? row["função"] ?? "").trim();
-      const carteiraName = String(row["CARTEIRA"] ?? row["carteira"] ?? "").trim();
-      const baseName = String(row["BASE"] ?? row["base"] ?? "").trim();
-      const sitRaw = normalize(row["SIT"] ?? row["SITUAÇÃO"] ?? row["SITUACAO"] ?? "ATIVO");
+      const chapa = normalize(col(row, "CHAPA", "MAT", "MATRICULA", "MATRÍCULA"));
+      const nome = String(col(row, "NOME", "NOME COMPLETO", "COLABORADOR") ?? "").trim();
+      const funcaoName = String(
+        col(row, "FUNÇÃO", "FUNCAO", "CARGO", "FUNÇÃO/CARGO", "FUNCAO/CARGO", "OCUPACAO", "OCUPAÇÃO") ?? ""
+      ).trim();
+      const carteiraName = String(col(row, "CARTEIRA", "GERÊNCIA", "GERENCIA", "SETOR") ?? "").trim();
+      const baseName = String(col(row, "BASE", "LOCAL", "LOCALIDADE", "UNIDADE") ?? "").trim();
+      const sitRaw = normalize(col(row, "SIT", "SITUAÇÃO", "SITUACAO", "STATUS", "SITUACAO ATUAL") ?? "ATIVO");
       const situacao: Situacao = SIT_MAP[sitRaw] ?? "ATIVO";
-      const admissao = parseDate(row["ADMISSÃO"] ?? row["ADMISSAO"] ?? row["admissao"]);
-      const demissao = parseDate(row["DEMISSÃO"] ?? row["DEMISSAO"] ?? row["demissao"]);
-      const cpf = String(row["CPF"] ?? row["cpf"] ?? "").trim() || null;
+      const admissao = parseDate(col(row, "ADMISSÃO", "ADMISSAO", "DT ADMISSÃO", "DT ADMISSAO", "DATA ADMISSAO", "DATA ADMISSÃO"));
+      const demissao = parseDate(col(row, "DEMISSÃO", "DEMISSAO", "DT DEMISSÃO", "DT DEMISSAO", "DATA DEMISSAO", "DATA DEMISSÃO"));
+      const cpf = String(col(row, "CPF") ?? "").trim() || null;
 
       if (!chapa || !nome) {
         errors.push(`Linha ${lineNum}: CHAPA e NOME são obrigatórios`);
@@ -85,14 +110,12 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // Upsert Funcao
       const funcao = await db.funcao.upsert({
         where: { name: funcaoName || "SEM FUNÇÃO" },
         create: { name: funcaoName || "SEM FUNÇÃO" },
         update: {},
       });
 
-      // Upsert Carteira
       let carteiraId: string | undefined;
       if (carteiraName) {
         const carteira = await db.carteira.upsert({
@@ -103,7 +126,6 @@ export async function POST(req: NextRequest) {
         carteiraId = carteira.id;
       }
 
-      // Upsert Base
       let baseId: string | undefined;
       if (baseName) {
         const base = await db.base.upsert({
