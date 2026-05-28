@@ -16,6 +16,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const status = session.user.status;
+  if (status === "PENDING") redirect("/pending");
+  if (status === "REJECTED") redirect("/rejected");
+
   const projectIds = await getAccessibleProjectIds(session.user.id, session.user.role);
   const projects = await db.project.findMany({
     where: { id: { in: projectIds } },

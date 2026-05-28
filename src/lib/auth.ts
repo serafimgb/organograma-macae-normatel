@@ -9,17 +9,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, user }) {
-      // Sempre atualiza o id no primeiro login
       if (user?.id) token.id = user.id;
 
-      // Sempre busca a role atual do banco (garante que mudanças de role refletem imediatamente)
       const uid = (token.id ?? token.sub) as string | undefined;
       if (uid) {
         const dbUser = await db.user.findUnique({
           where: { id: uid },
-          select: { role: true },
+          select: { role: true, status: true },
         });
-        if (dbUser) token.role = dbUser.role;
+        if (dbUser) {
+          token.role = dbUser.role;
+          token.status = dbUser.status;
+        }
       }
       return token;
     },
@@ -28,6 +29,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = (token.id ?? token.sub) as string;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (session.user as any).role = (token.role as string) ?? "VIEWER";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (session.user as any).status = (token.status as string) ?? "PENDING";
       }
       return session;
     },
@@ -42,6 +45,7 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
       role: "ADMIN" | "MANAGER" | "VIEWER";
+      status: "PENDING" | "APPROVED" | "REJECTED";
     };
   }
 }

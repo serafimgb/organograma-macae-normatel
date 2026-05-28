@@ -54,6 +54,12 @@ enum Role {
   VIEWER
 }
 
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum Situacao {
   ATIVO
   DESLIGADO
@@ -74,7 +80,8 @@ model User {
   emailVerified DateTime?
   name          String?
   image         String?
-  role          Role      @default(VIEWER)
+  role          Role       @default(VIEWER)
+  status        UserStatus @default(PENDING)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

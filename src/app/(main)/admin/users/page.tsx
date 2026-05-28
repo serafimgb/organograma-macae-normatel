@@ -7,14 +7,50 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserEditDialog } from "@/components/admin/user-edit-dialog";
 import { SalaryAccessManager } from "@/components/admin/salary-access-manager";
+import { UserApprovalDialog } from "@/components/admin/user-approval-dialog";
+import { Clock } from "lucide-react";
 
 type Role = "ADMIN" | "MANAGER" | "VIEWER";
+type UserStatus = "PENDING" | "APPROVED" | "REJECTED";
 type DisplayRole = "Admin" | "Gestor" | "Visualizador";
+
+interface PermWithProject {
+  id: string;
+  projectId: string;
+  canViewDashboard: boolean;
+  canViewOrganograma: boolean;
+  canViewEfetivo: boolean;
+  canEdit: boolean;
+  isSalaryManager: boolean;
+  project: { id: string; code: string; name: string };
+}
+
+interface UserRow {
+  id: string;
+  email: string | null;
+  name: string | null;
+  role: Role;
+  status: UserStatus;
+  permissions: PermWithProject[];
+}
+
+type ManagedProject = {
+  id: string;
+  code: string;
+  name: string;
+  users: { id: string; name: string | null; email: string; canViewSalary: boolean }[];
+};
 
 const roleBadge: Record<Role, { label: string; variant: "default" | "secondary" | "outline" }> = {
   ADMIN: { label: "Admin", variant: "default" },
   MANAGER: { label: "Gestor", variant: "secondary" },
   VIEWER: { label: "Visualizador", variant: "outline" },
+};
+
+const statusBadge: Record<UserStatus, { label: string; variant: "success" | "warning" | "destructive" }> = {
+  APPROVED: { label: "Ativo", variant: "success" },
+  PENDING: { label: "Pendente", variant: "warning" },
+  REJECTED: { label: "Rejeitado", variant: "destructive" },
 };
 
 const roleToDisplay: Record<Role, DisplayRole> = {
@@ -27,7 +63,7 @@ export default async function AdminUsersPage() {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") redirect("/projects");
 
-  const [users, projects] = await Promise.all([
+  const [rawUsers, projects] = await Promise.all([
     db.user.findMany({
       include: {
         permissions: {
@@ -43,9 +79,12 @@ export default async function AdminUsersPage() {
     }),
   ]);
 
-  type ManagedProject = { id: string; code: string; name: string; users: { id: string; name: string | null; email: string; canViewSalary: boolean }[] };
+  // Cast to our explicit interface so IDE and build both work
+  const users = rawUsers as unknown as UserRow[];
 
-  // Verifica se o usuário atual é gestor de salários em algum projeto
+  const pendingUsers = users.filter((u) => u.status === "PENDING");
+  const otherUsers = users.filter((u) => u.status !== "PENDING");
+
   const managedProjects = await Promise.all(
     projects.map(async (proj): Promise<ManagedProject | null> => {
       const isManager = await isSalaryManagerInProject(session.user.id, proj.id);
@@ -62,7 +101,7 @@ export default async function AdminUsersPage() {
       return {
         ...proj,
         users: projectUsers.map((u) => ({
-          id: u.id, name: u.name, email: u.email, canViewSalary: u.permissions.length > 0,
+          id: u.id, name: u.name, email: u.email ?? "", canViewSalary: u.permissions.length > 0,
         })),
       };
     })
@@ -76,6 +115,47 @@ export default async function AdminUsersPage() {
         <p className="text-sm text-muted-foreground">{users.length} usuários cadastrados</p>
       </div>
 
+      {/* Pendentes */}
+      {pendingUsers.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/40">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-amber-700">
+              <Clock className="h-5 w-5" />
+              Aguardando aprovação
+              <Badge variant="warning" className="ml-1">{pendingUsers.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>E-mail</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.name ?? "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+                    <TableCell className="text-right">
+                      <UserApprovalDialog
+                        userId={user.id}
+                        userName={user.name}
+                        userEmail={user.email ?? ""}
+                        onSaved={() => { /* reloads after server action */ }}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Usuários aprovados / rejeitados */}
       <Card>
         <CardHeader>
           <CardTitle>Usuários</CardTitle>
@@ -86,16 +166,18 @@ export default async function AdminUsersPage() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>E-mail</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Projetos</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user: typeof users[number]) => {
-                const rb = roleBadge[user.role as Role];
-                const projectCodes: string[] = [...new Set(user.permissions.map((p) => p.project.code))];
-                const userPerms = user.permissions.map((p: typeof user.permissions[number]) => ({
+              {otherUsers.map((user) => {
+                const rb = roleBadge[user.role] ?? roleBadge.VIEWER;
+                const sb = statusBadge[user.status] ?? statusBadge.APPROVED;
+                const projectCodes = [...new Set(user.permissions.map((p) => p.project.code))];
+                const userPerms = user.permissions.map((p) => ({
                   projectId: p.project.id,
                   canViewDashboard: p.canViewDashboard,
                   canViewOrganograma: p.canViewOrganograma,
@@ -107,7 +189,10 @@ export default async function AdminUsersPage() {
                 return (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name ?? "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{user.email ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={sb.variant}>{sb.label}</Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={rb.variant}>{rb.label}</Badge>
                     </TableCell>
@@ -130,8 +215,8 @@ export default async function AdminUsersPage() {
                       <UserEditDialog
                         userId={user.id}
                         userName={user.name}
-                        userEmail={user.email}
-                        userRole={roleToDisplay[user.role as Role]}
+                        userEmail={user.email ?? ""}
+                        userRole={roleToDisplay[user.role]}
                         permissions={userPerms}
                         projects={projects}
                       />
