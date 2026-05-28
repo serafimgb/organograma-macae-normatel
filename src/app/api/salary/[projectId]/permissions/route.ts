@@ -22,17 +22,13 @@ export async function PUT(
     return NextResponse.json({ error: "userId e canViewSalary são obrigatórios" }, { status: 400 });
   }
 
-  const perm = await db.permission.upsert({
-    where: { userId_projectId_scope_scopeRefId: { userId, projectId: params.projectId, scope: "ALL", scopeRefId: null } },
-    create: {
-      userId,
-      projectId: params.projectId,
-      scope: "ALL",
-      scopeRefId: null,
-      canViewSalary,
-    },
-    update: { canViewSalary },
+  const existing = await db.permission.findFirst({
+    where: { userId, projectId: params.projectId, scope: "ALL", scopeRefId: null },
   });
+
+  const perm = existing
+    ? await db.permission.update({ where: { id: existing.id }, data: { canViewSalary } })
+    : await db.permission.create({ data: { userId, projectId: params.projectId, scope: "ALL", scopeRefId: null, canViewSalary } });
 
   return NextResponse.json(perm);
 }

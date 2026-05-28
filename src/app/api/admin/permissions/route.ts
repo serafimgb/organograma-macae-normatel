@@ -19,27 +19,23 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  const perm = await db.permission.upsert({
-    where: { userId_projectId_scope_scopeRefId: { userId, projectId, scope: "ALL", scopeRefId: null } },
-    create: {
-      userId,
-      projectId,
-      scope: "ALL",
-      scopeRefId: null,
-      canViewDashboard: canViewDashboard ?? true,
-      canViewOrganograma: canViewOrganograma ?? true,
-      canViewEfetivo: canViewEfetivo ?? true,
-      canEdit: canEdit ?? false,
-      isSalaryManager: isSalaryManager ?? false,
-    },
-    update: {
-      canViewDashboard: canViewDashboard ?? true,
-      canViewOrganograma: canViewOrganograma ?? true,
-      canViewEfetivo: canViewEfetivo ?? true,
-      canEdit: canEdit ?? false,
-      isSalaryManager: isSalaryManager ?? false,
-    },
+  // upsert com scopeRefId=null não funciona no Postgres (NULL!=NULL em unique),
+  // então usamos findFirst + update/create manualmente
+  const existing = await db.permission.findFirst({
+    where: { userId, projectId, scope: "ALL", scopeRefId: null },
   });
+
+  const data = {
+    canViewDashboard: canViewDashboard ?? true,
+    canViewOrganograma: canViewOrganograma ?? true,
+    canViewEfetivo: canViewEfetivo ?? true,
+    canEdit: canEdit ?? false,
+    isSalaryManager: isSalaryManager ?? false,
+  };
+
+  const perm = existing
+    ? await db.permission.update({ where: { id: existing.id }, data })
+    : await db.permission.create({ data: { userId, projectId, scope: "ALL", scopeRefId: null, ...data } });
 
   return NextResponse.json(perm);
 }

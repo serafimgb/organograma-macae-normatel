@@ -168,17 +168,17 @@ export function UserEditDialog({
                 </div>
 
                 {hasPerm && perm && (
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                  <div className="pt-2 border-t space-y-2">
                     {(
                       [
-                        ["canViewDashboard", "Dashboard"],
-                        ["canViewOrganograma", "Organograma"],
-                        ["canViewEfetivo", "Efetivo"],
+                        ["canViewDashboard", "Ver Dashboard"],
+                        ["canViewOrganograma", "Ver Organograma"],
+                        ["canViewEfetivo", "Ver Efetivo"],
                         ["canEdit", "Pode editar"],
                         ["isSalaryManager", "Gestor de salários"],
                       ] as [keyof Omit<UserPerm, "projectId">, string][]
                     ).map(([flag, label]) => (
-                      <div key={flag} className="flex items-center justify-between gap-2">
+                      <div key={flag} className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">{label}</span>
                         <Switch
                           checked={!!perm[flag]}
