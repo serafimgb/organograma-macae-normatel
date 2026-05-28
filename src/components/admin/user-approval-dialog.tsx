@@ -9,7 +9,6 @@ interface Props {
   userId: string;
   userName: string | null;
   userEmail: string;
-  onSaved: () => void;
 }
 
 const ROLES = [
@@ -20,7 +19,7 @@ const ROLES = [
 
 type Role = typeof ROLES[number]["value"];
 
-export function UserApprovalDialog({ userId, userName, userEmail, onSaved }: Props) {
+export function UserApprovalDialog({ userId, userName, userEmail }: Props) {
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState<Role>("VIEWER");
   const [saving, setSaving] = useState(false);
@@ -37,7 +36,7 @@ export function UserApprovalDialog({ userId, userName, userEmail, onSaved }: Pro
       });
       if (!res.ok) throw new Error("Erro ao aprovar usuário");
       setOpen(false);
-      onSaved();
+      window.location.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro desconhecido");
     } finally {
@@ -56,7 +55,7 @@ export function UserApprovalDialog({ userId, userName, userEmail, onSaved }: Pro
       });
       if (!res.ok) throw new Error("Erro ao rejeitar usuário");
       setOpen(false);
-      onSaved();
+      window.location.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro desconhecido");
     } finally {

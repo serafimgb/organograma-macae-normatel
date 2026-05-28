@@ -144,7 +144,6 @@ export default async function AdminUsersPage() {
                         userId={user.id}
                         userName={user.name}
                         userEmail={user.email ?? ""}
-                        onSaved={() => { /* reloads after server action */ }}
                       />
                     </TableCell>
                   </TableRow>
