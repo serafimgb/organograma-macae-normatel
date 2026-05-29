@@ -47,31 +47,31 @@ type OrgFlowNode = Node<OrgNodeData>;
 
 // ─── Color palette ────────────────────────────────────────────────────────────
 
-const COLOR_PALETTE = [
-  { label: "Verde escuro",   value: "#166534" },
-  { label: "Verde médio",    value: "#2d7a2d" },
-  { label: "Verde claro",    value: "#15803d" },
-  { label: "Teal",           value: "#0f766e" },
-  { label: "Azul escuro",    value: "#1d4ed8" },
-  { label: "Azul",           value: "#0284c7" },
-  { label: "Azul claro",     value: "#0891b2" },
-  { label: "Índigo",         value: "#4338ca" },
-  { label: "Roxo",           value: "#7c3aed" },
-  { label: "Rosa",           value: "#db2777" },
-  { label: "Vermelho",       value: "#dc2626" },
-  { label: "Laranja",        value: "#ea580c" },
-  { label: "Âmbar",          value: "#d97706" },
-  { label: "Amarelo",        value: "#ca8a04" },
-  { label: "Cinza ardósia",  value: "#475569" },
-  { label: "Cinza escuro",   value: "#1e293b" },
+const COLOR_PALETTE: { label: string; value: string | null }[] = [
+  { label: "Padrão",    value: null },
+  { label: "Índigo",    value: "#6366f1" },
+  { label: "Violeta",   value: "#7c3aed" },
+  { label: "Azul",      value: "#3b82f6" },
+  { label: "Ciano",     value: "#06b6d4" },
+  { label: "Teal",      value: "#0d9488" },
+  { label: "Esmeralda", value: "#10b981" },
+  { label: "Verde",     value: "#22c55e" },
+  { label: "Lima",      value: "#65a30d" },
+  { label: "Âmbar",     value: "#d97706" },
+  { label: "Laranja",   value: "#ea580c" },
+  { label: "Vermelho",  value: "#dc2626" },
+  { label: "Rosa",      value: "#db2777" },
+  { label: "Ardósia",   value: "#475569" },
+  { label: "Cinza",     value: "#6b7280" },
+  { label: "Preto",     value: "#1e293b" },
 ];
 
-const SITUACAO_STYLE: Record<string, { border: string; bg: string; badge: string; text: string }> = {
-  ATIVO:     { border: "#22c55e", bg: "#f0fdf4", badge: "#16a34a", text: "Ativo" },
-  AFASTADO:  { border: "#f97316", bg: "#fff7ed", badge: "#ea580c", text: "Afastado" },
-  DESLIGADO: { border: "#94a3b8", bg: "#f8fafc", badge: "#64748b", text: "Desligado" },
-  FERIAS:    { border: "#3b82f6", bg: "#eff6ff", badge: "#2563eb", text: "Férias" },
-  LICENCA:   { border: "#a855f7", bg: "#faf5ff", badge: "#9333ea", text: "Licença" },
+const SITUACAO_STYLE: Record<string, { dot: string; text: string }> = {
+  ATIVO:     { dot: "#22c55e", text: "Ativo" },
+  AFASTADO:  { dot: "#f97316", text: "Afastado" },
+  DESLIGADO: { dot: "#94a3b8", text: "Desligado" },
+  FERIAS:    { dot: "#3b82f6", text: "Férias" },
+  LICENCA:   { dot: "#a855f7", text: "Licença" },
 };
 
 function nodeMatchesSearch(data: OrgNodeData, query: string): boolean {
@@ -83,7 +83,7 @@ function nodeMatchesSearch(data: OrgNodeData, query: string): boolean {
   );
 }
 
-// ─── Inline edit ─────────────────────────────────────────────────────────────
+// ─── Inline edit ──────────────────────────────────────────────────────────────
 
 function InlineEdit({ value, onSave, className, inputClassName }: {
   value: string; onSave: (v: string) => void; className?: string; inputClassName?: string;
@@ -100,7 +100,7 @@ function InlineEdit({ value, onSave, className, inputClassName }: {
     return (
       <input ref={ref} value={val} onChange={(e) => setVal(e.target.value)} onBlur={commit} onKeyDown={keyDown}
         onClick={(e) => e.stopPropagation()} autoFocus
-        className={inputClassName ?? "w-full text-center bg-transparent border-b border-white/50 outline-none text-white text-[10px] font-semibold uppercase tracking-wide"} />
+        className={inputClassName ?? "w-full bg-transparent border-b border-slate-300 outline-none text-[11px] font-bold uppercase tracking-wide"} />
     );
   }
   return <span className={className} onDoubleClick={start} title="Clique duplo para editar">{value}</span>;
@@ -115,20 +115,20 @@ function CommentSection({ comment, onSave }: { comment: string | null | undefine
   function save(e: React.MouseEvent) { e.stopPropagation(); onSave(val); setOpen(false); }
   function keyDown(e: React.KeyboardEvent) { e.stopPropagation(); if (e.key === "Escape") setOpen(false); }
   return (
-    <div className="border-t border-slate-200 px-2 py-1" onClick={(e) => e.stopPropagation()}>
+    <div className="border-t border-slate-100 px-3 py-1" onClick={(e) => e.stopPropagation()}>
       {!open ? (
-        <button onClick={toggle} className="flex items-center gap-1 text-[9px] text-slate-400 hover:text-slate-600 w-full">
+        <button onClick={toggle} className="flex items-center gap-1 text-[9px] text-slate-300 hover:text-slate-500 w-full">
           <MessageSquare className="h-3 w-3 shrink-0" />
-          {comment ? <span className="truncate text-left text-slate-500">{comment}</span> : <span>Adicionar comentário…</span>}
+          {comment ? <span className="truncate text-left text-slate-400">{comment}</span> : <span>Comentário…</span>}
         </button>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-1 py-1">
           <textarea value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={keyDown} onClick={(e) => e.stopPropagation()}
             placeholder="Comentário para gestores…" rows={3} autoFocus
             className="w-full text-[10px] text-slate-700 border border-slate-200 rounded p-1 resize-none outline-none focus:border-blue-400" />
           <div className="flex gap-1 justify-end">
             <button onClick={(e) => { e.stopPropagation(); setOpen(false); }} className="text-[9px] text-slate-400 hover:text-slate-600 px-1"><X className="h-3 w-3" /></button>
-            <button onClick={save} className="text-[9px] bg-emerald-600 text-white rounded px-2 py-0.5 hover:bg-emerald-700">OK</button>
+            <button onClick={save} className="text-[9px] bg-slate-700 text-white rounded px-2 py-0.5 hover:bg-slate-800">OK</button>
           </div>
         </div>
       )}
@@ -136,73 +136,89 @@ function CommentSection({ comment, onSave }: { comment: string | null | undefine
   );
 }
 
-// ─── OrgNode (cargo + colaborador) ───────────────────────────────────────────
+// ─── OrgNode: função em destaque + nome secundário ────────────────────────────
 
 function OrgNodeComponent({ id, data, selected }: { id: string; data: OrgNodeData; selected: boolean }) {
   const isVaga = !data.employeeNome && !data.displayNome;
-  const sit = data.situacao && SITUACAO_STYLE[data.situacao] ? data.situacao : "ATIVO";
-  const defaultSit = isVaga
-    ? { border: "#fbbf24", bg: "#fffbeb", badge: "#d97706", text: "Vaga" }
-    : SITUACAO_STYLE[sit];
+  const sit = data.situacao ?? "ATIVO";
+  const situStyle = SITUACAO_STYLE[sit] ?? SITUACAO_STYLE.ATIVO;
+  const showStatus = !isVaga && data.situacao && data.situacao !== "ATIVO";
 
-  // Custom color overrides header + border
-  const headerColor = (data.color as string | null) ?? (isVaga ? "#f59e0b" : "#2d7a2d");
-  const borderColor = (data.color as string | null) ?? defaultSit.border;
-  const bgColor = defaultSit.bg;
-
+  const accentColor = (data.color as string | null) ?? "#94a3b8";
   const displayName = data.displayNome || data.employeeNome;
   const canEditInline = !!data.onLabelChange;
   const dimmed = data.searchActive && !data.searchMatch;
   const highlighted = data.searchActive && data.searchMatch;
 
-  const handleStyle = { background: borderColor, border: "2px solid white", width: 12, height: 12, borderRadius: "50%" };
+  const handleStyle = { background: accentColor, border: "2px solid white", width: 10, height: 10, borderRadius: "50%" };
 
   return (
     <>
       <Handle type="target" position={Position.Top} style={handleStyle} />
       <div
         style={{
-          borderColor: highlighted ? "#f59e0b" : selected ? "#6366f1" : borderColor,
-          backgroundColor: bgColor,
-          borderStyle: isVaga ? "dashed" : "solid",
-          boxShadow: highlighted ? "0 0 0 3px #fbbf24, 0 4px 12px rgba(0,0,0,0.15)"
-            : selected ? "0 0 0 2px #6366f1, 0 4px 12px rgba(0,0,0,0.15)"
-            : "0 2px 8px rgba(0,0,0,0.10)",
+          width: 200,
+          backgroundColor: "#ffffff",
+          border: `1px solid ${highlighted ? "#f59e0b" : selected ? "#6366f1" : "#e2e8f0"}`,
+          borderLeft: `4px solid ${highlighted ? "#f59e0b" : selected ? "#6366f1" : accentColor}`,
+          boxShadow: highlighted
+            ? "0 0 0 2px #fef3c7, 0 2px 8px rgba(0,0,0,0.08)"
+            : selected
+            ? "0 0 0 2px #e0e7ff, 0 2px 8px rgba(0,0,0,0.08)"
+            : "0 1px 4px rgba(0,0,0,0.06)",
+          borderRadius: 6,
+          overflow: "hidden",
           opacity: dimmed ? 0.25 : 1,
           transition: "opacity 0.15s",
         }}
-        className="min-w-[190px] max-w-[230px] rounded-lg border-2 overflow-hidden font-sans"
+        className="font-sans"
       >
-        <div style={{ backgroundColor: headerColor }} className="px-3 py-2 text-center">
+        {/* Cargo / Função — elemento principal */}
+        <div className="px-3 pt-2.5 pb-1.5">
           {canEditInline
             ? <InlineEdit value={data.label} onSave={(v) => data.onLabelChange!(id, v)}
-                className="text-white text-[10px] font-semibold tracking-wide uppercase leading-tight block cursor-text hover:opacity-80" />
-            : <span className="text-white text-[10px] font-semibold tracking-wide uppercase leading-tight block">{data.label}</span>}
+                className="text-[11px] font-bold text-slate-800 uppercase tracking-wide leading-tight block cursor-text hover:text-slate-600"
+                inputClassName="w-full bg-transparent border-b border-slate-300 outline-none text-[11px] font-bold text-slate-800 uppercase tracking-wide"
+              />
+            : <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wide leading-tight block">{data.label}</span>
+          }
         </div>
-        <div className="px-3 py-2 text-center">
+
+        <div style={{ height: 1, backgroundColor: "#f1f5f9", margin: "0 12px" }} />
+
+        {/* Nome — elemento secundário */}
+        <div className="px-3 pt-1.5 pb-2">
           {isVaga ? (
-            <span className="text-[11px] font-bold text-amber-700 tracking-wider">VAGA EM ABERTO</span>
+            <span className="text-[10px] font-semibold text-amber-600 tracking-wide">VAGA EM ABERTO</span>
           ) : (
-            <>
-              {canEditInline
-                ? <InlineEdit value={displayName ?? ""} onSave={(v) => data.onNomeChange!(id, v)}
-                    className="text-[11px] font-bold text-slate-800 leading-tight cursor-text hover:opacity-70 block"
-                    inputClassName="w-full text-center bg-slate-50 border-b border-slate-300 outline-none text-[11px] font-bold text-slate-800" />
-                : <div className="text-[11px] font-bold text-slate-800 leading-tight">{displayName}</div>}
-              {data.employeeChapa && <div className="text-[9px] text-slate-400 mt-0.5 font-mono">#{data.employeeChapa}</div>}
-              {data.situacao && data.situacao !== "ATIVO" && (
-                <span style={{ backgroundColor: defaultSit.badge }} className="mt-1 inline-block text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full">
-                  {defaultSit.text}
+            <div className="flex items-start gap-1">
+              <div className="flex-1 min-w-0">
+                {canEditInline
+                  ? <InlineEdit value={displayName ?? ""} onSave={(v) => data.onNomeChange!(id, v)}
+                      className="text-[10px] text-slate-500 leading-tight block cursor-text hover:text-slate-700"
+                      inputClassName="w-full bg-transparent border-b border-slate-200 outline-none text-[10px] text-slate-500"
+                    />
+                  : <div className="text-[10px] text-slate-500 leading-tight">{displayName}</div>
+                }
+                {data.employeeChapa && (
+                  <div className="text-[9px] text-slate-400 mt-0.5 font-mono">#{data.employeeChapa}</div>
+                )}
+              </div>
+              {showStatus && (
+                <span style={{ backgroundColor: situStyle.dot }}
+                  className="shrink-0 text-white text-[8px] font-semibold px-1.5 py-0.5 rounded-full mt-0.5 whitespace-nowrap">
+                  {situStyle.text}
                 </span>
               )}
-            </>
+            </div>
           )}
         </div>
+
         {canEditInline && <CommentSection comment={data.comment} onSave={(v) => data.onCommentChange!(id, v)} />}
         {!canEditInline && data.comment && (
-          <div className="border-t border-slate-200 px-2 py-1 flex items-start gap-1">
-            <MessageSquare className="h-3 w-3 text-slate-400 shrink-0 mt-0.5" />
-            <span className="text-[9px] text-slate-500 leading-tight">{data.comment}</span>
+          <div className="border-t border-slate-100 px-3 py-1 flex items-center gap-1">
+            <MessageSquare className="h-3 w-3 text-slate-300 shrink-0" />
+            <span className="text-[9px] text-slate-400 truncate">{data.comment}</span>
           </div>
         )}
       </div>
@@ -216,22 +232,22 @@ function OrgNodeComponent({ id, data, selected }: { id: string; data: OrgNodeDat
 function CarteiraGroupNode({ id, data, selected }: { id: string; data: OrgNodeData; selected: boolean }) {
   const canEdit = !!data.onLabelChange;
   const dimmed = data.searchActive && !data.searchMatch;
-  const color = (data.color as string | null) ?? "#166534";
+  const color = (data.color as string | null) ?? "#64748b";
 
   return (
     <div
       style={{
-        width: "100%", height: "100%", borderRadius: 14,
+        width: "100%", height: "100%", borderRadius: 10,
         border: `2px solid ${selected ? "#6366f1" : color}`,
         overflow: "hidden",
-        boxShadow: selected ? "0 0 0 2px #6366f1, 0 6px 24px rgba(0,0,0,0.18)" : "0 4px 16px rgba(0,0,0,0.12)",
-        backgroundColor: "rgba(240, 253, 244, 0.55)",
+        boxShadow: selected ? "0 0 0 2px #e0e7ff, 0 6px 24px rgba(0,0,0,0.12)" : "0 4px 16px rgba(0,0,0,0.08)",
+        backgroundColor: "rgba(248, 250, 252, 0.75)",
         backdropFilter: "blur(2px)",
         opacity: dimmed ? 0.3 : 1,
         transition: "opacity 0.15s",
       }}
     >
-      <div style={{ backgroundColor: color, height: 56 }} className="px-4 flex items-center justify-between gap-3">
+      <div style={{ backgroundColor: color, height: 48 }} className="px-4 flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
           {canEdit
             ? <InlineEdit value={data.label} onSave={(v) => data.onLabelChange!(id, v)}
@@ -255,12 +271,12 @@ function CarteiraGroupNode({ id, data, selected }: { id: string; data: OrgNodeDa
 // ─── Section label (base / área) ──────────────────────────────────────────────
 
 function SectionLabelNode({ id, data, selected }: { id: string; data: OrgNodeData; selected: boolean }) {
-  const color = (data.color as string | null) ?? "#166534";
+  const color = (data.color as string | null) ?? "#64748b";
   const canEditInline = !!data.onLabelChange;
   const dimmed = data.searchActive && !data.searchMatch;
   const highlighted = data.searchActive && data.searchMatch;
 
-  const handleStyle = { background: color, border: "2px solid white", width: 12, height: 12, borderRadius: "50%" };
+  const handleStyle = { background: color, border: "2px solid white", width: 10, height: 10, borderRadius: "50%" };
 
   return (
     <>
@@ -269,14 +285,14 @@ function SectionLabelNode({ id, data, selected }: { id: string; data: OrgNodeDat
         style={{
           backgroundColor: color,
           border: `2px solid ${highlighted ? "#f59e0b" : selected ? "#6366f1" : color}`,
-          boxShadow: highlighted ? "0 0 0 3px #fbbf24, 0 4px 16px rgba(0,0,0,0.2)"
-            : selected ? "0 0 0 2px #6366f1, 0 4px 16px rgba(0,0,0,0.2)"
-            : "0 3px 12px rgba(0,0,0,0.18)",
+          boxShadow: highlighted ? "0 0 0 3px #fbbf24, 0 4px 16px rgba(0,0,0,0.15)"
+            : selected ? "0 0 0 2px #6366f1, 0 4px 16px rgba(0,0,0,0.15)"
+            : "0 3px 12px rgba(0,0,0,0.12)",
           opacity: dimmed ? 0.25 : 1,
           transition: "opacity 0.15s",
           minWidth: 200,
-          borderRadius: 10,
-          padding: "10px 28px",
+          borderRadius: 8,
+          padding: "10px 24px",
           textAlign: "center",
         }}
       >
@@ -346,8 +362,8 @@ interface OrgFlowEditorProps {
 const DEFAULT_EDGE = {
   type: "smoothstep",
   animated: false,
-  style: { stroke: "#475569", strokeWidth: 2 },
-  markerEnd: { type: MarkerType.ArrowClosed, color: "#475569" },
+  style: { stroke: "#94a3b8", strokeWidth: 1.5 },
+  markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8" },
 };
 
 const SNAP_GRID: [number, number] = [20, 20];
@@ -375,14 +391,14 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
     setNodes((nds) => nds.map((n) => n.id === nodeId ? { ...n, data: { ...n.data, comment: val || null } } : n));
   }, [setNodes]);
 
-  const changeNodeColor = useCallback((color: string) => {
+  const changeNodeColor = useCallback((color: string | null) => {
     if (!selectedNodeId) return;
     setNodes((nds) => nds.map((n) => n.id === selectedNodeId ? { ...n, data: { ...n.data, color } } : n));
   }, [selectedNodeId, setNodes]);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
   const selectedIsChild = !!(selectedNode as any)?.parentId && !selectedNode?.data.isGroup;
-  const selectedColor = (selectedNode?.data.color as string | null) ?? null;
+  const selectedColor = (selectedNode?.data.color as string | null | undefined) ?? null;
 
   const searchActive = searchQuery.trim().length > 0;
   const matchingIds = searchActive
@@ -437,7 +453,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
   }, [selectedNodeId, selectedEdgeId, setNodes, setEdges]);
 
   const applyGroupResize = useCallback((nds: OrgFlowNode[]): OrgFlowNode[] => {
-    const NODE_W = 220, NODE_H = 155, PAD = 20;
+    const NODE_W = 200, NODE_H = 90, PAD = 20;
     return nds.map((n) => {
       if (!n.data.isGroup) return n;
       const children = nds.filter((c) => (c as any).parentId === n.id);
@@ -491,8 +507,8 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
         }
         return applyGroupResize(nds);
       }
-      const centerX = draggedNode.position.x + 110;
-      const centerY = draggedNode.position.y + 75;
+      const centerX = draggedNode.position.x + 100;
+      const centerY = draggedNode.position.y + 45;
       const targetGroup = nds.find((n) => {
         if (!n.data.isGroup) return false;
         const gx = n.position.x, gy = n.position.y;
@@ -534,7 +550,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
     setNodes((nds) => [...nds, {
       id, type: "sectionLabel",
       position: { x: 250 + Math.random() * 150, y: 80 + Math.random() * 60 },
-      data: { label: "NOME DA BASE", displayNome: null, employeeNome: null, employeeChapa: null, color: "#166534" },
+      data: { label: "NOME DA BASE", displayNome: null, employeeNome: null, employeeChapa: null, color: null },
     }]);
   }, [setNodes]);
 
@@ -590,8 +606,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
             const d = n.data as OrgNodeData;
             const c = d.color as string | null;
             if (c) return c;
-            if (d.isGroup) return "#15803d";
-            return d.situacao && SITUACAO_STYLE[d.situacao] ? SITUACAO_STYLE[d.situacao].border : "#2d7a2d";
+            return d.isGroup ? "#64748b" : "#cbd5e1";
           }}
           style={{ background: "#f8fafc" }}
         />
@@ -600,15 +615,14 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
 
         {canEdit && (
           <Panel position="top-right" className="flex flex-col gap-2 items-end">
-            {/* Main toolbar */}
             <div className="flex flex-wrap gap-2 justify-end">
               <Button size="sm" variant="outline" onClick={addNode}>
                 <Plus className="mr-1 h-4 w-4" /> Nova caixa
               </Button>
-              <Button size="sm" variant="outline" onClick={addGroupNode} className="border-emerald-600 text-emerald-700 hover:bg-emerald-50">
+              <Button size="sm" variant="outline" onClick={addGroupNode} className="border-slate-400 text-slate-600 hover:bg-slate-50">
                 <FolderPlus className="mr-1 h-4 w-4" /> Nova carteira
               </Button>
-              <Button size="sm" variant="outline" onClick={addSectionLabel} className="border-slate-500 text-slate-600 hover:bg-slate-50">
+              <Button size="sm" variant="outline" onClick={addSectionLabel} className="border-slate-400 text-slate-600 hover:bg-slate-50">
                 <Tag className="mr-1 h-4 w-4" /> Nova seção/base
               </Button>
               <Button size="sm" variant={snapEnabled ? "default" : "outline"}
@@ -634,15 +648,11 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
               </Button>
             </div>
 
-            {/* Color picker — shown when a node is selected */}
             {selectedNodeId && (
               <div className="bg-white/95 border rounded-lg shadow-md p-3 w-full">
-                <button
-                  onClick={() => setShowColorPicker((v) => !v)}
-                  className="flex items-center gap-2 w-full text-left"
-                >
+                <button onClick={() => setShowColorPicker((v) => !v)} className="flex items-center gap-2 w-full text-left">
                   <Palette className="h-4 w-4 text-slate-500" />
-                  <span className="text-xs font-medium text-slate-600">Cor da caixa</span>
+                  <span className="text-xs font-medium text-slate-600">Cor do acento</span>
                   {selectedColor && (
                     <span className="ml-auto w-4 h-4 rounded-full border border-slate-200 shrink-0" style={{ backgroundColor: selectedColor }} />
                   )}
@@ -650,23 +660,27 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
                 </button>
                 {showColorPicker && (
                   <div className="mt-2 grid grid-cols-8 gap-1.5">
-                    {COLOR_PALETTE.map((c) => (
-                      <button
-                        key={c.value}
-                        onClick={() => changeNodeColor(c.value)}
-                        title={c.label}
-                        style={{ backgroundColor: c.value }}
-                        className={`w-6 h-6 rounded-md transition-all hover:scale-110 ${
-                          selectedColor === c.value ? "ring-2 ring-offset-1 ring-slate-700 scale-110" : ""
-                        }`}
-                      />
-                    ))}
+                    {COLOR_PALETTE.map((c) =>
+                      c.value === null ? (
+                        <button key="default" onClick={() => changeNodeColor(null)} title="Padrão"
+                          className={`w-6 h-6 rounded-md border-2 border-dashed border-slate-300 bg-white transition-all hover:scale-110 ${
+                            selectedColor === null ? "ring-2 ring-offset-1 ring-slate-500 scale-110" : ""
+                          }`}
+                        />
+                      ) : (
+                        <button key={c.value} onClick={() => changeNodeColor(c.value)} title={c.label}
+                          style={{ backgroundColor: c.value }}
+                          className={`w-6 h-6 rounded-md transition-all hover:scale-110 ${
+                            selectedColor === c.value ? "ring-2 ring-offset-1 ring-slate-700 scale-110" : ""
+                          }`}
+                        />
+                      )
+                    )}
                   </div>
                 )}
               </div>
             )}
 
-            {/* Help text */}
             <div className="bg-white/90 border text-[11px] text-slate-500 rounded-md px-3 py-2 shadow-sm max-w-[300px] leading-relaxed">
               <span className="font-semibold text-slate-700">Como editar:</span><br />
               • <strong>Nova seção/base:</strong> caixa colorida como título de área<br />
