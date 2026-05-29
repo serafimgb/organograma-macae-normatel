@@ -20,6 +20,7 @@ interface UserPerm {
   canViewEfetivo: boolean;
   canEdit: boolean;
   isSalaryManager: boolean;
+  canEditComments: boolean;
 }
 
 interface UserEditDialogProps {
@@ -65,6 +66,7 @@ export function UserEditDialog({
           canViewEfetivo: true,
           canEdit: false,
           isSalaryManager: false,
+          canEditComments: false,
         };
       }
       return next;
@@ -175,6 +177,7 @@ export function UserEditDialog({
                         ["canViewOrganograma", "Ver Organograma"],
                         ["canViewEfetivo", "Ver Efetivo"],
                         ["canEdit", "Pode editar"],
+                        ["canEditComments", "Editar comentários no organograma"],
                         ["isSalaryManager", "Gestor de salários"],
                       ] as [keyof Omit<UserPerm, "projectId">, string][]
                     ).map(([flag, label]) => (

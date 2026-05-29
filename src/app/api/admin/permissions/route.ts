@@ -8,7 +8,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
   }
 
-  const { userId, projectId, canViewDashboard, canViewOrganograma, canViewEfetivo, canEdit, isSalaryManager, remove } = await req.json();
+  const { userId, projectId, canViewDashboard, canViewOrganograma, canViewEfetivo, canEdit, isSalaryManager, canEditComments, remove } = await req.json();
 
   if (!userId || !projectId) {
     return NextResponse.json({ error: "userId e projectId são obrigatórios" }, { status: 400 });
@@ -31,6 +31,7 @@ export async function PUT(req: NextRequest) {
     canViewEfetivo: canViewEfetivo ?? true,
     canEdit: canEdit ?? false,
     isSalaryManager: isSalaryManager ?? false,
+    canEditComments: canEditComments ?? false,
   };
 
   const perm = existing

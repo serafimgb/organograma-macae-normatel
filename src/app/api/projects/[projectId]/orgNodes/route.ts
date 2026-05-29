@@ -40,6 +40,7 @@ export async function PUT(
 
     const nodeType = (node.type as string) ?? "orgNode";
     const color = (node.data?.color as string) ?? null;
+    const slots = nodeType === "positionGroup" ? ((node.data?.slots as any) ?? null) : null;
 
     await db.orgNode.upsert({
       where: { id: node.id },
@@ -56,6 +57,7 @@ export async function PUT(
         isGroup: nodeType === "carteiraGroup",
         nodeType,
         color,
+        slots,
       },
       update: {
         label: node.data?.label ?? "",
@@ -66,6 +68,7 @@ export async function PUT(
         comment: (node.data?.comment as string) ?? null,
         nodeType,
         color,
+        slots,
       },
     });
   }

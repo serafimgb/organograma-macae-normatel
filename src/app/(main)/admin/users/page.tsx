@@ -23,6 +23,7 @@ interface PermWithProject {
   canViewEfetivo: boolean;
   canEdit: boolean;
   isSalaryManager: boolean;
+  canEditComments: boolean;
   project: { id: string; code: string; name: string };
 }
 
@@ -191,6 +192,7 @@ export default async function AdminUsersPage() {
                   canViewEfetivo: p.canViewEfetivo,
                   canEdit: p.canEdit,
                   isSalaryManager: p.isSalaryManager,
+                  canEditComments: (p as any).canEditComments ?? false,
                 }));
 
                 return (

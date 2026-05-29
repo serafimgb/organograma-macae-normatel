@@ -92,6 +92,17 @@ export async function canViewTab(
   return false;
 }
 
+/** Pode editar comentários no organograma (canEdit implica canEditComments) */
+export async function canEditOrgComments(userId: string, role: Role, projectId: string): Promise<boolean> {
+  if (role === "ADMIN") return true;
+  const perm = await db.permission.findFirst({
+    where: { userId, projectId, scope: "ALL" },
+    select: { canEdit: true, canEditComments: true },
+  });
+  if (!perm) return false;
+  return perm.canEdit || (perm as any).canEditComments;
+}
+
 /** Verifica se o usuário é gestor de salários nesse projeto */
 export async function isSalaryManagerInProject(
   userId: string,

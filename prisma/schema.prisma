@@ -173,6 +173,7 @@ model OrgNode {
   isGroup     Boolean @default(false)
   nodeType    String?
   color       String?
+  slots       Json?
 
   project  Project   @relation(fields: [projectId], references: [id])
   employee Employee? @relation(fields: [employeeId], references: [id])
@@ -190,6 +191,7 @@ model Permission {
   canViewSalary      Boolean @default(false)
   isSalaryManager    Boolean @default(false)
   canEdit            Boolean @default(false)
+  canEditComments    Boolean @default(false)
   scope              Scope   @default(ALL)
   scopeRefId         String?
 
