@@ -92,10 +92,11 @@ model User {
 }
 
 model Project {
-  id          String  @id @default(cuid())
-  code        String  @unique
-  name        String
-  description String?
+  id             String  @id @default(cuid())
+  code           String  @unique
+  name           String
+  description    String?
+  organogramUrl  String?
 
   carteiras   Carteira[]
   bases       Base[]

@@ -23,9 +23,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const projectIds = await getAccessibleProjectIds(session.user.id, session.user.role);
   const projects = await db.project.findMany({
     where: { id: { in: projectIds } },
-    select: { id: true, code: true, name: true },
     orderBy: { code: "asc" },
-  });
+  }) as unknown as Array<{ id: string; code: string; name: string; organogramUrl: string | null }>;
 
   let tabMap: TabMap | null = null;
 

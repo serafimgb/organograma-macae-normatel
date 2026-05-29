@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,8 @@ import {
   ChevronDown,
   UserCircle2,
   DollarSign,
+  ExternalLink,
+  Settings,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
@@ -21,6 +24,7 @@ interface Project {
   id: string;
   code: string;
   name: string;
+  organogramUrl?: string | null;
 }
 
 type TabFlags = {
@@ -43,15 +47,20 @@ export function Sidebar({ projects, userRole, userName, tabMap }: SidebarProps) 
     projects[0]?.code ?? null
   );
 
-  const projectLinks = (code: string, projectId: string) => {
+  const projectLinks = (project: Project) => {
+    const { code, id: projectId, organogramUrl } = project;
     const flags = tabMap?.[projectId];
-    const links = [];
+    const links: { href: string; label: string; icon: React.ElementType; external?: boolean }[] = [];
 
     if (!flags || flags.dashboard) {
       links.push({ href: `/projects/${code}/dashboard`, label: "Dashboard", icon: LayoutDashboard });
     }
     if (!flags || flags.organograma) {
-      links.push({ href: `/projects/${code}/organograma`, label: "Organograma", icon: GitFork });
+      if (organogramUrl) {
+        links.push({ href: organogramUrl, label: "Organograma", icon: ExternalLink, external: true });
+      } else {
+        links.push({ href: `/projects/${code}/organograma`, label: "Organograma", icon: GitFork });
+      }
     }
     if (!flags || flags.efetivo) {
       links.push({ href: `/projects/${code}/efetivo`, label: "Efetivo", icon: Users });
@@ -80,7 +89,7 @@ export function Sidebar({ projects, userRole, userName, tabMap }: SidebarProps) 
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {projects.map((project) => {
           const isExpanded = expandedProject === project.code;
-          const links = projectLinks(project.code, project.id);
+          const links = projectLinks(project);
           const isActive = links.some((l) => pathname === l.href);
 
           return (
@@ -108,25 +117,38 @@ export function Sidebar({ projects, userRole, userName, tabMap }: SidebarProps) 
 
               {isExpanded && (
                 <div className="ml-3 mt-0.5 space-y-0.5 pl-3 border-l" style={{ borderColor: "rgba(255,255,255,0.15)" }}>
-                  {links.map(({ href, label, icon: Icon }) => (
-                    <Link
-                      key={href}
-                      href={href}
-                      className={cn(
-                        "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
-                        pathname === href
-                          ? "text-white font-semibold"
-                          : "text-white/60 hover:text-white hover:bg-white/10"
-                      )}
-                      style={pathname === href ? {
-                        backgroundColor: "#4caf50",
-                        boxShadow: "0 1px 4px rgba(76,175,80,0.4)"
-                      } : {}}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      {label}
-                    </Link>
-                  ))}
+                  {links.map(({ href, label, icon: Icon, external }) =>
+                    external ? (
+                      <a
+                        key={href}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors text-white/60 hover:text-white hover:bg-white/10"
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        {label}
+                      </a>
+                    ) : (
+                      <Link
+                        key={href}
+                        href={href}
+                        className={cn(
+                          "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                          pathname === href
+                            ? "text-white font-semibold"
+                            : "text-white/60 hover:text-white hover:bg-white/10"
+                        )}
+                        style={pathname === href ? {
+                          backgroundColor: "#4caf50",
+                          boxShadow: "0 1px 4px rgba(76,175,80,0.4)"
+                        } : {}}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        {label}
+                      </Link>
+                    )
+                  )}
                 </div>
               )}
             </div>
@@ -140,6 +162,7 @@ export function Sidebar({ projects, userRole, userName, tabMap }: SidebarProps) 
             </div>
             {[
               { href: "/admin/users", label: "Usuários & Permissões", icon: Users },
+              { href: "/admin/projects", label: "Config. Projetos", icon: Settings },
               { href: "/admin/import", label: "Importar Excel", icon: Upload },
             ].map(({ href, label, icon: Icon }) => (
               <Link
