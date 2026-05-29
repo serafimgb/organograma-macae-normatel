@@ -34,12 +34,12 @@ export async function PUT(
 
   // Upsert each node
   for (const node of nodes ?? []) {
-    // parentId vem de:
-    // 1. edge desenhado pelo usuário (parentMap)
-    // 2. parentId do ReactFlow (subflow — nó filho de um container)
     const edgeParent = parentMap.get(node.id) as string | undefined;
     const reactFlowParent = (node as any).parentId as string | undefined;
     const dbParentId = edgeParent ?? reactFlowParent ?? null;
+
+    const nodeType = (node.type as string) ?? "orgNode";
+    const color = (node.data?.color as string) ?? null;
 
     await db.orgNode.upsert({
       where: { id: node.id },
@@ -53,7 +53,9 @@ export async function PUT(
         employeeId: (node.data?.employeeId as string) ?? null,
         displayNome: (node.data?.displayNome as string) ?? null,
         comment: (node.data?.comment as string) ?? null,
-        isGroup: (node.data?.isGroup as boolean) ?? false,
+        isGroup: nodeType === "carteiraGroup",
+        nodeType,
+        color,
       },
       update: {
         label: node.data?.label ?? "",
@@ -62,6 +64,8 @@ export async function PUT(
         parentId: dbParentId,
         displayNome: (node.data?.displayNome as string) ?? null,
         comment: (node.data?.comment as string) ?? null,
+        nodeType,
+        color,
       },
     });
   }

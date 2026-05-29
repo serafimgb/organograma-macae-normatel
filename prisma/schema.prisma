@@ -171,6 +171,8 @@ model OrgNode {
   displayNome String?
   comment     String? @db.Text
   isGroup     Boolean @default(false)
+  nodeType    String?
+  color       String?
 
   project  Project   @relation(fields: [projectId], references: [id])
   employee Employee? @relation(fields: [employeeId], references: [id])

@@ -23,7 +23,9 @@ import {
 // @ts-ignore
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Check, Trash2, MessageSquare, X, FolderPlus, LogOut, Search, Grid2x2, Grid2x2Check } from "lucide-react";
+import { Plus, Save, Check, Trash2, MessageSquare, X, FolderPlus, LogOut, Search, Grid2x2, Grid2x2Check, Tag, Palette } from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface OrgNodeData extends Record<string, unknown> {
   label: string;
@@ -33,6 +35,7 @@ interface OrgNodeData extends Record<string, unknown> {
   situacao?: string | null;
   comment?: string | null;
   isGroup?: boolean;
+  color?: string | null;
   searchActive?: boolean;
   searchMatch?: boolean;
   onLabelChange?: (id: string, val: string) => void;
@@ -41,6 +44,27 @@ interface OrgNodeData extends Record<string, unknown> {
 }
 
 type OrgFlowNode = Node<OrgNodeData>;
+
+// ─── Color palette ────────────────────────────────────────────────────────────
+
+const COLOR_PALETTE = [
+  { label: "Verde escuro",   value: "#166534" },
+  { label: "Verde médio",    value: "#2d7a2d" },
+  { label: "Verde claro",    value: "#15803d" },
+  { label: "Teal",           value: "#0f766e" },
+  { label: "Azul escuro",    value: "#1d4ed8" },
+  { label: "Azul",           value: "#0284c7" },
+  { label: "Azul claro",     value: "#0891b2" },
+  { label: "Índigo",         value: "#4338ca" },
+  { label: "Roxo",           value: "#7c3aed" },
+  { label: "Rosa",           value: "#db2777" },
+  { label: "Vermelho",       value: "#dc2626" },
+  { label: "Laranja",        value: "#ea580c" },
+  { label: "Âmbar",          value: "#d97706" },
+  { label: "Amarelo",        value: "#ca8a04" },
+  { label: "Cinza ardósia",  value: "#475569" },
+  { label: "Cinza escuro",   value: "#1e293b" },
+];
 
 const SITUACAO_STYLE: Record<string, { border: string; bg: string; badge: string; text: string }> = {
   ATIVO:     { border: "#22c55e", bg: "#f0fdf4", badge: "#16a34a", text: "Ativo" },
@@ -53,68 +77,33 @@ const SITUACAO_STYLE: Record<string, { border: string; bg: string; badge: string
 function nodeMatchesSearch(data: OrgNodeData, query: string): boolean {
   const q = query.toLowerCase();
   return (
-    (data.label?.toLowerCase().includes(q)) ||
-    (data.displayNome?.toLowerCase().includes(q)) ||
-    (data.employeeNome?.toLowerCase().includes(q)) ||
-    false
+    !!data.label?.toLowerCase().includes(q) ||
+    !!data.displayNome?.toLowerCase().includes(q) ||
+    !!data.employeeNome?.toLowerCase().includes(q)
   );
 }
 
 // ─── Inline edit ─────────────────────────────────────────────────────────────
 
-function InlineEdit({
-  value,
-  onSave,
-  className,
-  inputClassName,
-}: {
-  value: string;
-  onSave: (v: string) => void;
-  className?: string;
-  inputClassName?: string;
+function InlineEdit({ value, onSave, className, inputClassName }: {
+  value: string; onSave: (v: string) => void; className?: string; inputClassName?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(value);
   const ref = useRef<HTMLInputElement>(null);
 
-  function start(e: React.MouseEvent) {
-    e.stopPropagation();
-    setVal(value);
-    setEditing(true);
-    setTimeout(() => ref.current?.select(), 10);
-  }
-
-  function commit() {
-    if (val.trim()) onSave(val.trim());
-    setEditing(false);
-  }
-
-  function keyDown(e: React.KeyboardEvent) {
-    e.stopPropagation();
-    if (e.key === "Enter") commit();
-    if (e.key === "Escape") setEditing(false);
-  }
+  function start(e: React.MouseEvent) { e.stopPropagation(); setVal(value); setEditing(true); setTimeout(() => ref.current?.select(), 10); }
+  function commit() { if (val.trim()) onSave(val.trim()); setEditing(false); }
+  function keyDown(e: React.KeyboardEvent) { e.stopPropagation(); if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }
 
   if (editing) {
     return (
-      <input
-        ref={ref}
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onBlur={commit}
-        onKeyDown={keyDown}
-        onClick={(e) => e.stopPropagation()}
-        autoFocus
-        className={inputClassName ?? "w-full text-center bg-transparent border-b border-white/50 outline-none text-white text-[10px] font-semibold uppercase tracking-wide"}
-      />
+      <input ref={ref} value={val} onChange={(e) => setVal(e.target.value)} onBlur={commit} onKeyDown={keyDown}
+        onClick={(e) => e.stopPropagation()} autoFocus
+        className={inputClassName ?? "w-full text-center bg-transparent border-b border-white/50 outline-none text-white text-[10px] font-semibold uppercase tracking-wide"} />
     );
   }
-
-  return (
-    <span className={className} onDoubleClick={start} title="Clique duplo para editar">
-      {value}
-    </span>
-  );
+  return <span className={className} onDoubleClick={start} title="Clique duplo para editar">{value}</span>;
 }
 
 // ─── Comment section ──────────────────────────────────────────────────────────
@@ -122,11 +111,9 @@ function InlineEdit({
 function CommentSection({ comment, onSave }: { comment: string | null | undefined; onSave: (v: string) => void }) {
   const [open, setOpen] = useState(false);
   const [val, setVal] = useState(comment ?? "");
-
   function toggle(e: React.MouseEvent) { e.stopPropagation(); setVal(comment ?? ""); setOpen((o) => !o); }
   function save(e: React.MouseEvent) { e.stopPropagation(); onSave(val); setOpen(false); }
   function keyDown(e: React.KeyboardEvent) { e.stopPropagation(); if (e.key === "Escape") setOpen(false); }
-
   return (
     <div className="border-t border-slate-200 px-2 py-1" onClick={(e) => e.stopPropagation()}>
       {!open ? (
@@ -136,20 +123,11 @@ function CommentSection({ comment, onSave }: { comment: string | null | undefine
         </button>
       ) : (
         <div className="space-y-1">
-          <textarea
-            value={val}
-            onChange={(e) => setVal(e.target.value)}
-            onKeyDown={keyDown}
-            onClick={(e) => e.stopPropagation()}
-            placeholder="Comentário para gestores…"
-            rows={3}
-            autoFocus
-            className="w-full text-[10px] text-slate-700 border border-slate-200 rounded p-1 resize-none outline-none focus:border-blue-400"
-          />
+          <textarea value={val} onChange={(e) => setVal(e.target.value)} onKeyDown={keyDown} onClick={(e) => e.stopPropagation()}
+            placeholder="Comentário para gestores…" rows={3} autoFocus
+            className="w-full text-[10px] text-slate-700 border border-slate-200 rounded p-1 resize-none outline-none focus:border-blue-400" />
           <div className="flex gap-1 justify-end">
-            <button onClick={(e) => { e.stopPropagation(); setOpen(false); }} className="text-[9px] text-slate-400 hover:text-slate-600 px-1">
-              <X className="h-3 w-3" />
-            </button>
+            <button onClick={(e) => { e.stopPropagation(); setOpen(false); }} className="text-[9px] text-slate-400 hover:text-slate-600 px-1"><X className="h-3 w-3" /></button>
             <button onClick={save} className="text-[9px] bg-emerald-600 text-white rounded px-2 py-0.5 hover:bg-emerald-700">OK</button>
           </div>
         </div>
@@ -158,73 +136,68 @@ function CommentSection({ comment, onSave }: { comment: string | null | undefine
   );
 }
 
-// ─── Node components ──────────────────────────────────────────────────────────
+// ─── OrgNode (cargo + colaborador) ───────────────────────────────────────────
 
 function OrgNodeComponent({ id, data, selected }: { id: string; data: OrgNodeData; selected: boolean }) {
   const isVaga = !data.employeeNome && !data.displayNome;
   const sit = data.situacao && SITUACAO_STYLE[data.situacao] ? data.situacao : "ATIVO";
-  const style = isVaga
+  const defaultSit = isVaga
     ? { border: "#fbbf24", bg: "#fffbeb", badge: "#d97706", text: "Vaga" }
     : SITUACAO_STYLE[sit];
 
+  // Custom color overrides header + border
+  const headerColor = (data.color as string | null) ?? (isVaga ? "#f59e0b" : "#2d7a2d");
+  const borderColor = (data.color as string | null) ?? defaultSit.border;
+  const bgColor = defaultSit.bg;
+
   const displayName = data.displayNome || data.employeeNome;
   const canEditInline = !!data.onLabelChange;
-
-  // Search highlight: dim non-matching nodes
   const dimmed = data.searchActive && !data.searchMatch;
   const highlighted = data.searchActive && data.searchMatch;
 
-  const handleStyle = { background: style.border, border: "2px solid white", width: 12, height: 12, borderRadius: "50%" };
+  const handleStyle = { background: borderColor, border: "2px solid white", width: 12, height: 12, borderRadius: "50%" };
 
   return (
     <>
       <Handle type="target" position={Position.Top} style={handleStyle} />
       <div
         style={{
-          borderColor: highlighted ? "#f59e0b" : selected ? "#6366f1" : style.border,
-          backgroundColor: style.bg,
+          borderColor: highlighted ? "#f59e0b" : selected ? "#6366f1" : borderColor,
+          backgroundColor: bgColor,
           borderStyle: isVaga ? "dashed" : "solid",
-          boxShadow: highlighted
-            ? "0 0 0 3px #fbbf24, 0 4px 12px rgba(0,0,0,0.15)"
-            : selected
-            ? "0 0 0 2px #6366f1, 0 4px 12px rgba(0,0,0,0.15)"
+          boxShadow: highlighted ? "0 0 0 3px #fbbf24, 0 4px 12px rgba(0,0,0,0.15)"
+            : selected ? "0 0 0 2px #6366f1, 0 4px 12px rgba(0,0,0,0.15)"
             : "0 2px 8px rgba(0,0,0,0.10)",
           opacity: dimmed ? 0.25 : 1,
           transition: "opacity 0.15s",
         }}
         className="min-w-[190px] max-w-[230px] rounded-lg border-2 overflow-hidden font-sans"
       >
-        <div style={{ backgroundColor: isVaga ? "#f59e0b" : "#2d7a2d" }} className="px-3 py-2 text-center">
-          {canEditInline ? (
-            <InlineEdit value={data.label} onSave={(v) => data.onLabelChange!(id, v)}
-              className="text-white text-[10px] font-semibold tracking-wide uppercase leading-tight block cursor-text hover:opacity-80" />
-          ) : (
-            <span className="text-white text-[10px] font-semibold tracking-wide uppercase leading-tight block">{data.label}</span>
-          )}
+        <div style={{ backgroundColor: headerColor }} className="px-3 py-2 text-center">
+          {canEditInline
+            ? <InlineEdit value={data.label} onSave={(v) => data.onLabelChange!(id, v)}
+                className="text-white text-[10px] font-semibold tracking-wide uppercase leading-tight block cursor-text hover:opacity-80" />
+            : <span className="text-white text-[10px] font-semibold tracking-wide uppercase leading-tight block">{data.label}</span>}
         </div>
-
         <div className="px-3 py-2 text-center">
           {isVaga ? (
             <span className="text-[11px] font-bold text-amber-700 tracking-wider">VAGA EM ABERTO</span>
           ) : (
             <>
-              {canEditInline ? (
-                <InlineEdit value={displayName ?? ""} onSave={(v) => data.onNomeChange!(id, v)}
-                  className="text-[11px] font-bold text-slate-800 leading-tight cursor-text hover:opacity-70 block"
-                  inputClassName="w-full text-center bg-slate-50 border-b border-slate-300 outline-none text-[11px] font-bold text-slate-800" />
-              ) : (
-                <div className="text-[11px] font-bold text-slate-800 leading-tight">{displayName}</div>
-              )}
+              {canEditInline
+                ? <InlineEdit value={displayName ?? ""} onSave={(v) => data.onNomeChange!(id, v)}
+                    className="text-[11px] font-bold text-slate-800 leading-tight cursor-text hover:opacity-70 block"
+                    inputClassName="w-full text-center bg-slate-50 border-b border-slate-300 outline-none text-[11px] font-bold text-slate-800" />
+                : <div className="text-[11px] font-bold text-slate-800 leading-tight">{displayName}</div>}
               {data.employeeChapa && <div className="text-[9px] text-slate-400 mt-0.5 font-mono">#{data.employeeChapa}</div>}
               {data.situacao && data.situacao !== "ATIVO" && (
-                <span style={{ backgroundColor: style.badge }} className="mt-1 inline-block text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full">
-                  {style.text}
+                <span style={{ backgroundColor: defaultSit.badge }} className="mt-1 inline-block text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full">
+                  {defaultSit.text}
                 </span>
               )}
             </>
           )}
         </div>
-
         {canEditInline && <CommentSection comment={data.comment} onSave={(v) => data.onCommentChange!(id, v)} />}
         {!canEditInline && data.comment && (
           <div className="border-t border-slate-200 px-2 py-1 flex items-start gap-1">
@@ -238,15 +211,18 @@ function OrgNodeComponent({ id, data, selected }: { id: string; data: OrgNodeDat
   );
 }
 
+// ─── Carteira container ───────────────────────────────────────────────────────
+
 function CarteiraGroupNode({ id, data, selected }: { id: string; data: OrgNodeData; selected: boolean }) {
   const canEdit = !!data.onLabelChange;
   const dimmed = data.searchActive && !data.searchMatch;
+  const color = (data.color as string | null) ?? "#166534";
 
   return (
     <div
       style={{
         width: "100%", height: "100%", borderRadius: 14,
-        border: `2px solid ${selected ? "#6366f1" : "#166534"}`,
+        border: `2px solid ${selected ? "#6366f1" : color}`,
         overflow: "hidden",
         boxShadow: selected ? "0 0 0 2px #6366f1, 0 6px 24px rgba(0,0,0,0.18)" : "0 4px 16px rgba(0,0,0,0.12)",
         backgroundColor: "rgba(240, 253, 244, 0.55)",
@@ -255,22 +231,20 @@ function CarteiraGroupNode({ id, data, selected }: { id: string; data: OrgNodeDa
         transition: "opacity 0.15s",
       }}
     >
-      <div style={{ backgroundColor: "#166534", height: 56 }} className="px-4 flex items-center justify-between gap-3">
+      <div style={{ backgroundColor: color, height: 56 }} className="px-4 flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
-          {canEdit ? (
-            <InlineEdit value={data.label} onSave={(v) => data.onLabelChange!(id, v)}
-              className="text-white text-[12px] font-bold tracking-widest uppercase cursor-text hover:opacity-80 block truncate" />
-          ) : (
-            <span className="text-white text-[12px] font-bold tracking-widest uppercase block truncate">{data.label}</span>
-          )}
+          {canEdit
+            ? <InlineEdit value={data.label} onSave={(v) => data.onLabelChange!(id, v)}
+                className="text-white text-[12px] font-bold tracking-widest uppercase cursor-text hover:opacity-80 block truncate" />
+            : <span className="text-white text-[12px] font-bold tracking-widest uppercase block truncate">{data.label}</span>}
         </div>
         {data.displayNome && (
-          <span className="shrink-0 bg-emerald-500 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
-            {canEdit ? (
-              <InlineEdit value={data.displayNome} onSave={(v) => data.onNomeChange!(id, v)}
-                className="text-white text-[11px] font-semibold cursor-text hover:opacity-80"
-                inputClassName="bg-transparent border-b border-white/50 outline-none text-[11px] font-semibold text-white w-24 text-center" />
-            ) : data.displayNome}
+          <span className="shrink-0 bg-white/20 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
+            {canEdit
+              ? <InlineEdit value={data.displayNome} onSave={(v) => data.onNomeChange!(id, v)}
+                  className="text-white text-[11px] font-semibold cursor-text hover:opacity-80"
+                  inputClassName="bg-transparent border-b border-white/50 outline-none text-[11px] font-semibold text-white w-24 text-center" />
+              : data.displayNome}
           </span>
         )}
       </div>
@@ -278,17 +252,52 @@ function CarteiraGroupNode({ id, data, selected }: { id: string; data: OrgNodeDa
   );
 }
 
-const nodeTypes = { orgNode: OrgNodeComponent, carteiraGroup: CarteiraGroupNode };
+// ─── Section label (base / área) ──────────────────────────────────────────────
 
-// ─── Search panel (must be inside <ReactFlow> to use useReactFlow) ─────────────
+function SectionLabelNode({ id, data, selected }: { id: string; data: OrgNodeData; selected: boolean }) {
+  const color = (data.color as string | null) ?? "#166534";
+  const canEditInline = !!data.onLabelChange;
+  const dimmed = data.searchActive && !data.searchMatch;
+  const highlighted = data.searchActive && data.searchMatch;
+
+  const handleStyle = { background: color, border: "2px solid white", width: 12, height: 12, borderRadius: "50%" };
+
+  return (
+    <>
+      <Handle type="target" position={Position.Top} style={handleStyle} />
+      <div
+        style={{
+          backgroundColor: color,
+          border: `2px solid ${highlighted ? "#f59e0b" : selected ? "#6366f1" : color}`,
+          boxShadow: highlighted ? "0 0 0 3px #fbbf24, 0 4px 16px rgba(0,0,0,0.2)"
+            : selected ? "0 0 0 2px #6366f1, 0 4px 16px rgba(0,0,0,0.2)"
+            : "0 3px 12px rgba(0,0,0,0.18)",
+          opacity: dimmed ? 0.25 : 1,
+          transition: "opacity 0.15s",
+          minWidth: 200,
+          borderRadius: 10,
+          padding: "10px 28px",
+          textAlign: "center",
+        }}
+      >
+        {canEditInline
+          ? <InlineEdit value={data.label} onSave={(v) => data.onLabelChange!(id, v)}
+              className="text-white text-sm font-bold tracking-widest uppercase cursor-text hover:opacity-80 block" />
+          : <span className="text-white text-sm font-bold tracking-widest uppercase block">{data.label}</span>}
+      </div>
+      <Handle type="source" position={Position.Bottom} style={handleStyle} />
+    </>
+  );
+}
+
+const nodeTypes = { orgNode: OrgNodeComponent, carteiraGroup: CarteiraGroupNode, sectionLabel: SectionLabelNode };
+
+// ─── Search panel ─────────────────────────────────────────────────────────────
 
 function SearchPanel({ nodes, searchQuery, setSearchQuery }: {
-  nodes: OrgFlowNode[];
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
+  nodes: OrgFlowNode[]; searchQuery: string; setSearchQuery: (q: string) => void;
 }) {
   const { fitView } = useReactFlow();
-
   useEffect(() => {
     if (!searchQuery.trim()) return;
     const matches = nodes.filter((n) => nodeMatchesSearch(n.data, searchQuery));
@@ -299,20 +308,16 @@ function SearchPanel({ nodes, searchQuery, setSearchQuery }: {
   }, [searchQuery]);
 
   const matchCount = searchQuery.trim()
-    ? nodes.filter((n) => nodeMatchesSearch(n.data, searchQuery)).length
-    : 0;
+    ? nodes.filter((n) => nodeMatchesSearch(n.data, searchQuery)).length : 0;
 
   return (
     <Panel position="top-left">
       <div className="flex items-center gap-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+          <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar nome ou cargo…"
-            className="h-9 pl-8 pr-7 rounded-md border border-slate-200 bg-white/95 shadow-sm text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 w-60"
-          />
+            className="h-9 pl-8 pr-7 rounded-md border border-slate-200 bg-white/95 shadow-sm text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 w-60" />
           {searchQuery && (
             <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
               <X className="h-4 w-4" />
@@ -356,6 +361,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [snapEnabled, setSnapEnabled] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const onLabelChange = useCallback((nodeId: string, val: string) => {
     setNodes((nds) => nds.map((n) => n.id === nodeId ? { ...n, data: { ...n.data, label: val } } : n));
@@ -369,10 +375,15 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
     setNodes((nds) => nds.map((n) => n.id === nodeId ? { ...n, data: { ...n.data, comment: val || null } } : n));
   }, [setNodes]);
 
+  const changeNodeColor = useCallback((color: string) => {
+    if (!selectedNodeId) return;
+    setNodes((nds) => nds.map((n) => n.id === selectedNodeId ? { ...n, data: { ...n.data, color } } : n));
+  }, [selectedNodeId, setNodes]);
+
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
   const selectedIsChild = !!(selectedNode as any)?.parentId && !selectedNode?.data.isGroup;
+  const selectedColor = (selectedNode?.data.color as string | null) ?? null;
 
-  // Build search match set
   const searchActive = searchQuery.trim().length > 0;
   const matchingIds = searchActive
     ? new Set(nodes.filter((n) => nodeMatchesSearch(n.data, searchQuery)).map((n) => n.id))
@@ -404,11 +415,13 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
   const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
+    setShowColorPicker(false);
   }, []);
 
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
+    setShowColorPicker(false);
   }, []);
 
   const deleteSelected = useCallback(() => {
@@ -457,10 +470,8 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
 
   const onNodeDragStop = useCallback((_: React.MouseEvent, draggedNode: OrgFlowNode) => {
     if (!canEdit || draggedNode.data.isGroup) return;
-
     setNodes((nds) => {
       const parentId = (draggedNode as any).parentId as string | undefined;
-
       if (parentId) {
         const parent = nds.find((n) => n.id === parentId);
         if (parent) {
@@ -480,10 +491,8 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
         }
         return applyGroupResize(nds);
       }
-
       const centerX = draggedNode.position.x + 110;
       const centerY = draggedNode.position.y + 75;
-
       const targetGroup = nds.find((n) => {
         if (!n.data.isGroup) return false;
         const gx = n.position.x, gy = n.position.y;
@@ -491,19 +500,13 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
         const gh = (n.style?.height as number) ?? 360;
         return centerX >= gx && centerX <= gx + gw && centerY >= gy && centerY <= gy + gh;
       });
-
       if (!targetGroup) return nds;
-
       const relX = Math.max(0, draggedNode.position.x - targetGroup.position.x);
       const relY = Math.max(0, draggedNode.position.y - targetGroup.position.y);
-
       const withParent = nds.map((n) =>
         n.id !== draggedNode.id ? n : { ...n, parentId: targetGroup.id, position: { x: relX, y: relY } }
       );
-
-      const groups = withParent.filter((n) => n.data.isGroup);
-      const others = withParent.filter((n) => !n.data.isGroup);
-      return applyGroupResize([...groups, ...others]);
+      return applyGroupResize([...withParent.filter((n) => n.data.isGroup), ...withParent.filter((n) => !n.data.isGroup)]);
     });
   }, [canEdit, applyGroupResize, setNodes]);
 
@@ -512,7 +515,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
     setNodes((nds) => [...nds, {
       id, type: "orgNode",
       position: { x: 300 + Math.random() * 200, y: 200 + Math.random() * 100 },
-      data: { label: "Nova Posição", displayNome: null, employeeNome: null, employeeChapa: null },
+      data: { label: "Nova Posição", displayNome: null, employeeNome: null, employeeChapa: null, color: null },
     }]);
   }, [setNodes]);
 
@@ -522,8 +525,17 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
       id, type: "carteiraGroup",
       position: { x: 200 + Math.random() * 100, y: 100 + Math.random() * 50 },
       style: { width: 500, height: 360 },
-      data: { label: "Nova Carteira", displayNome: "0 colaboradores", isGroup: true, employeeNome: null, employeeChapa: null },
+      data: { label: "Nova Carteira", displayNome: "0 colaboradores", isGroup: true, employeeNome: null, employeeChapa: null, color: null },
     }, ...nds]);
+  }, [setNodes]);
+
+  const addSectionLabel = useCallback(() => {
+    const id = `section-${Date.now()}`;
+    setNodes((nds) => [...nds, {
+      id, type: "sectionLabel",
+      position: { x: 250 + Math.random() * 150, y: 80 + Math.random() * 60 },
+      data: { label: "NOME DA BASE", displayNome: null, employeeNome: null, employeeChapa: null, color: "#166534" },
+    }]);
   }, [setNodes]);
 
   const saveLayout = useCallback(async () => {
@@ -568,29 +580,27 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
         snapGrid={SNAP_GRID}
         proOptions={{ hideAttribution: true }}
       >
-        {/* Background: lines when snap on, dots otherwise */}
-        {snapEnabled ? (
-          <Background variant={BackgroundVariant.Lines} gap={20} size={1} color="#e2e8f0" />
-        ) : (
-          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e2e8f0" />
-        )}
+        {snapEnabled
+          ? <Background variant={BackgroundVariant.Lines} gap={20} size={1} color="#e2e8f0" />
+          : <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e2e8f0" />}
 
         <Controls showInteractive={false} />
         <MiniMap
           nodeColor={(n) => {
             const d = n.data as OrgNodeData;
+            const c = d.color as string | null;
+            if (c) return c;
             if (d.isGroup) return "#15803d";
             return d.situacao && SITUACAO_STYLE[d.situacao] ? SITUACAO_STYLE[d.situacao].border : "#2d7a2d";
           }}
           style={{ background: "#f8fafc" }}
         />
 
-        {/* Search bar — always visible */}
         <SearchPanel nodes={nodes} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
 
-        {/* Edit toolbar */}
         {canEdit && (
           <Panel position="top-right" className="flex flex-col gap-2 items-end">
+            {/* Main toolbar */}
             <div className="flex flex-wrap gap-2 justify-end">
               <Button size="sm" variant="outline" onClick={addNode}>
                 <Plus className="mr-1 h-4 w-4" /> Nova caixa
@@ -598,19 +608,16 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
               <Button size="sm" variant="outline" onClick={addGroupNode} className="border-emerald-600 text-emerald-700 hover:bg-emerald-50">
                 <FolderPlus className="mr-1 h-4 w-4" /> Nova carteira
               </Button>
-
-              {/* Snap to grid toggle */}
-              <Button
-                size="sm"
-                variant={snapEnabled ? "default" : "outline"}
+              <Button size="sm" variant="outline" onClick={addSectionLabel} className="border-slate-500 text-slate-600 hover:bg-slate-50">
+                <Tag className="mr-1 h-4 w-4" /> Nova seção/base
+              </Button>
+              <Button size="sm" variant={snapEnabled ? "default" : "outline"}
                 onClick={() => setSnapEnabled((v) => !v)}
-                title={snapEnabled ? "Desativar grade" : "Ativar grade (encaixar ao arrastar)"}
                 className={snapEnabled ? "bg-indigo-600 hover:bg-indigo-700" : ""}
-              >
+                title={snapEnabled ? "Desativar grade" : "Ativar grade"}>
                 {snapEnabled ? <Grid2x2Check className="mr-1 h-4 w-4" /> : <Grid2x2 className="mr-1 h-4 w-4" />}
                 Grade {snapEnabled ? "ON" : "OFF"}
               </Button>
-
               {selectedIsChild && (
                 <Button size="sm" variant="outline" onClick={ejectNode} className="border-orange-400 text-orange-600 hover:bg-orange-50">
                   <LogOut className="mr-1 h-4 w-4" /> Tirar do container
@@ -627,14 +634,47 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit }
               </Button>
             </div>
 
-            <div className="bg-white/90 border text-[11px] text-slate-500 rounded-md px-3 py-2 shadow-sm max-w-[280px] leading-relaxed">
+            {/* Color picker — shown when a node is selected */}
+            {selectedNodeId && (
+              <div className="bg-white/95 border rounded-lg shadow-md p-3 w-full">
+                <button
+                  onClick={() => setShowColorPicker((v) => !v)}
+                  className="flex items-center gap-2 w-full text-left"
+                >
+                  <Palette className="h-4 w-4 text-slate-500" />
+                  <span className="text-xs font-medium text-slate-600">Cor da caixa</span>
+                  {selectedColor && (
+                    <span className="ml-auto w-4 h-4 rounded-full border border-slate-200 shrink-0" style={{ backgroundColor: selectedColor }} />
+                  )}
+                  <span className="text-[10px] text-slate-400">{showColorPicker ? "▲" : "▼"}</span>
+                </button>
+                {showColorPicker && (
+                  <div className="mt-2 grid grid-cols-8 gap-1.5">
+                    {COLOR_PALETTE.map((c) => (
+                      <button
+                        key={c.value}
+                        onClick={() => changeNodeColor(c.value)}
+                        title={c.label}
+                        style={{ backgroundColor: c.value }}
+                        className={`w-6 h-6 rounded-md transition-all hover:scale-110 ${
+                          selectedColor === c.value ? "ring-2 ring-offset-1 ring-slate-700 scale-110" : ""
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Help text */}
+            <div className="bg-white/90 border text-[11px] text-slate-500 rounded-md px-3 py-2 shadow-sm max-w-[300px] leading-relaxed">
               <span className="font-semibold text-slate-700">Como editar:</span><br />
-              • <strong>Entrar no container:</strong> arraste a caixa por cima do container verde e solte<br />
-              • <strong>Sair do container:</strong> arraste para fora dos limites, ou selecione e clique "Tirar do container"<br />
+              • <strong>Nova seção/base:</strong> caixa colorida como título de área<br />
+              • <strong>Cor:</strong> selecione uma caixa e escolha a cor<br />
+              • <strong>Entrar no container:</strong> arraste a caixa por cima do container<br />
               • <strong>Cargo/Nome:</strong> clique duplo no texto<br />
-              • <strong>Comentário:</strong> clique no ícone de mensagem<br />
               • <strong>Conectar:</strong> arraste da bolinha inferior<br />
-              • <strong>Grade:</strong> ative para encaixar caixas na grade ao arrastar
+              • <strong>Grade:</strong> encaixe automático ao arrastar
             </div>
           </Panel>
         )}

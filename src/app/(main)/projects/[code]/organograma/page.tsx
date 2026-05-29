@@ -13,6 +13,7 @@ interface OrgNodeData extends Record<string, unknown> {
   employeeNome: string | null;
   employeeChapa: string | null;
   situacao: string | null;
+  color: string | null;
 }
 
 export default async function OrganoGramaPage({ params }: { params: { code: string } }) {
@@ -44,12 +45,17 @@ export default async function OrganoGramaPage({ params }: { params: { code: stri
     include: { employee: { select: { nome: true, chapa: true, situacao: true } } },
   });
 
-  // IDs dos nós que são containers de carteira
-  const groupIds = new Set(dbNodes.filter((n) => (n as any).isGroup).map((n) => n.id));
+  // Determine each node's React Flow type from nodeType field (backward compat with isGroup)
+  const getNodeType = (n: typeof dbNodes[number]): "orgNode" | "carteiraGroup" | "sectionLabel" => {
+    const stored = (n as any).nodeType as string | null | undefined;
+    if (stored === "sectionLabel") return "sectionLabel";
+    if (stored === "carteiraGroup" || (!stored && n.isGroup)) return "carteiraGroup";
+    return "orgNode";
+  };
 
-  // Calcula dimensões de cada container a partir das posições relativas dos filhos
-  // (posições relativas já armazenadas no DB pelo script de geração)
-  const NODE_W_EST = 240; // estimativa com margem
+  const groupIds = new Set(dbNodes.filter((n) => getNodeType(n) === "carteiraGroup").map((n) => n.id));
+
+  const NODE_W_EST = 240;
   const NODE_H_EST = 170;
   const HEADER_H = 56;
   const PAD = 20;
@@ -64,9 +70,8 @@ export default async function OrganoGramaPage({ params }: { params: { code: stri
     }
   }
 
-  // Grupos devem vir ANTES dos filhos no array (requisito do ReactFlow para subflows)
-  const groupNodes = dbNodes.filter((n) => (n as any).isGroup);
-  const childNodes = dbNodes.filter((n) => !(n as any).isGroup);
+  const groupNodes = dbNodes.filter((n) => getNodeType(n) === "carteiraGroup");
+  const childNodes = dbNodes.filter((n) => getNodeType(n) !== "carteiraGroup");
 
   const initialNodes: Node<OrgNodeData>[] = [
     ...groupNodes.map((n) => {
@@ -86,14 +91,16 @@ export default async function OrganoGramaPage({ params }: { params: { code: stri
           employeeNome: null,
           employeeChapa: null,
           situacao: null,
+          color: (n as any).color ?? null,
         },
       };
     }),
     ...childNodes.map((n) => {
+      const nType = getNodeType(n);
       const parentIsGroup = !!n.parentId && groupIds.has(n.parentId);
       return {
         id: n.id,
-        type: "orgNode" as const,
+        type: nType as "orgNode" | "sectionLabel",
         position: { x: n.positionX, y: n.positionY },
         ...(parentIsGroup ? { parentId: n.parentId! } : {}),
         data: {
@@ -104,12 +111,12 @@ export default async function OrganoGramaPage({ params }: { params: { code: stri
           employeeNome: n.employee?.nome ?? null,
           employeeChapa: n.employee?.chapa ?? null,
           situacao: (n.employee?.situacao as string) ?? null,
+          color: (n as any).color ?? null,
         },
       };
     }),
   ];
 
-  // Edges apenas entre nós que NÃO são filhos de grupo (hierarquia manual entre orgNodes)
   const initialEdges: Edge[] = dbNodes
     .filter((n) => n.parentId && !groupIds.has(n.parentId) && !groupIds.has(n.id))
     .map((n) => ({
