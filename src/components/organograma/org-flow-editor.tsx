@@ -326,13 +326,15 @@ function PositionGroupNode({ id, data, selected }: { id: string; data: OrgNodeDa
             <div key={slot.slotId}>
               <div className="px-3 py-1.5 flex items-center gap-1 border-t border-slate-50 group">
                 <div className="flex-1 min-w-0">
-                  {isVagaSlot ? (
-                    <span className="text-[10px] font-semibold text-amber-600">VAGA EM ABERTO</span>
-                  ) : canEditLabel ? (
-                    <InlineEdit value={slotName ?? "—"} onSave={(v) => data.onSlotNomeChange!(id, slot.slotId, v)}
-                      className="text-[10px] text-slate-500 leading-tight block cursor-text hover:text-slate-700 truncate"
-                      inputClassName="w-full bg-transparent border-b border-slate-200 outline-none text-[10px] text-slate-500"
+                  {canEditLabel ? (
+                    <InlineEdit
+                      value={slotName ?? "VAGA EM ABERTO"}
+                      onSave={(v) => data.onSlotNomeChange!(id, slot.slotId, v)}
+                      className={`text-[10px] leading-tight block cursor-text truncate ${isVagaSlot ? "font-semibold text-amber-600 hover:text-amber-700" : "text-slate-500 hover:text-slate-700"}`}
+                      inputClassName="w-full bg-transparent border-b border-slate-200 outline-none text-[10px] text-slate-600"
                     />
+                  ) : isVagaSlot ? (
+                    <span className="text-[10px] font-semibold text-amber-600">VAGA EM ABERTO</span>
                   ) : (
                     <span className="text-[10px] text-slate-500 leading-tight block truncate">{slotName}</span>
                   )}
@@ -460,6 +462,23 @@ const nodeTypes = {
   positionGroup: PositionGroupNode,
 };
 
+// ─── Fit-to-new-node helper ───────────────────────────────────────────────────
+
+function FitNewNode({ nodeId, onDone }: { nodeId: string | null; onDone: () => void }) {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    if (!nodeId) return;
+    // Wait one frame so React Flow has rendered the new node
+    const raf = requestAnimationFrame(() => {
+      fitView({ nodes: [{ id: nodeId }], duration: 350, padding: 0.5, maxZoom: 1.5 });
+      onDone();
+    });
+    return () => cancelAnimationFrame(raf);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeId]);
+  return null;
+}
+
 // ─── Search panel ─────────────────────────────────────────────────────────────
 
 function SearchPanel({ nodes, searchQuery, setSearchQuery }: {
@@ -528,6 +547,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit, 
   const [searchQuery, setSearchQuery] = useState("");
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [pendingFitNode, setPendingFitNode] = useState<string | null>(null);
 
   // ── Callbacks de edição ──────────────────────────────────────────────────
   const onLabelChange = useCallback((nodeId: string, val: string) => {
@@ -714,6 +734,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit, 
       position: { x: 300 + Math.random() * 200, y: 200 + Math.random() * 100 },
       data: { label: "Nova Posição", displayNome: null, employeeNome: null, employeeChapa: null, color: null },
     }]);
+    setPendingFitNode(id);
   }, [setNodes]);
 
   const addPositionGroup = useCallback(() => {
@@ -728,6 +749,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit, 
         slots: [{ slotId: `slot-${Date.now()}`, displayNome: null, employeeNome: null, employeeChapa: null, situacao: null, comment: null }],
       },
     }]);
+    setPendingFitNode(id);
   }, [setNodes]);
 
   const addGroupNode = useCallback(() => {
@@ -738,6 +760,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit, 
       style: { width: 500, height: 360 },
       data: { label: "Nova Carteira", displayNome: "0 colaboradores", isGroup: true, employeeNome: null, employeeChapa: null, color: null },
     }, ...nds]);
+    setPendingFitNode(id);
   }, [setNodes]);
 
   const addSectionLabel = useCallback(() => {
@@ -747,6 +770,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit, 
       position: { x: 250 + Math.random() * 150, y: 80 + Math.random() * 60 },
       data: { label: "NOME DA BASE", displayNome: null, employeeNome: null, employeeChapa: null, color: null },
     }]);
+    setPendingFitNode(id);
   }, [setNodes]);
 
   // ── Salvar ────────────────────────────────────────────────────────────────
@@ -807,6 +831,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit, 
         />
 
         <SearchPanel nodes={nodes} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+        <FitNewNode nodeId={pendingFitNode} onDone={() => setPendingFitNode(null)} />
 
         {canEdit && (
           <Panel position="top-right" className="flex flex-col gap-2 items-end">
