@@ -44,6 +44,20 @@ function normalize(raw: unknown): string {
   return String(raw ?? "").trim().toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
+function normalizeSexo(raw: unknown): string | null {
+  const v = normalize(raw);
+  if (!v) return null;
+  if (v.startsWith("M")) return "M";
+  if (v.startsWith("F")) return "F";
+  return v;
+}
+
+function toNumber(raw: unknown): number | null {
+  if (raw === undefined || raw === null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : parseFloat(String(raw).replace(",", "."));
+  return isNaN(n) ? null : n;
+}
+
 /** Finds column value by trying multiple header aliases (case-insensitive, accent-insensitive) */
 function col(row: Record<string, unknown>, ...aliases: string[]): unknown {
   const keys = Object.keys(row);
@@ -63,16 +77,13 @@ export async function POST(req: NextRequest) {
 
   const form = await req.formData();
   const file = form.get("file") as File | null;
-  const projectId = form.get("projectId") as string | null;
 
-  if (!file || !projectId) {
-    return NextResponse.json({ errors: ["Arquivo e projeto são obrigatórios"] }, { status: 400 });
+  if (!file) {
+    return NextResponse.json({ errors: ["Arquivo é obrigatório"] }, { status: 400 });
   }
 
-  const project = await db.project.findUnique({ where: { id: projectId } });
-  if (!project) {
-    return NextResponse.json({ errors: ["Projeto não encontrado"] }, { status: 404 });
-  }
+  const projects = await db.project.findMany({ select: { id: true, name: true } });
+  const projectByName = new Map(projects.map((p) => [normalize(p.name), p]));
 
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: "array", cellDates: true });
@@ -88,6 +99,18 @@ export async function POST(req: NextRequest) {
     const lineNum = i + 2;
 
     try {
+      const projetoName = String(col(row, "PROJETO", "PROJETO/OBRA", "OBRA") ?? "").trim();
+      if (!projetoName) {
+        errors.push(`Linha ${lineNum}: PROJETO obrigatório`);
+        continue;
+      }
+      const project = projectByName.get(normalize(projetoName));
+      if (!project) {
+        errors.push(`Linha ${lineNum}: projeto "${projetoName}" não encontrado`);
+        continue;
+      }
+      const projectId = project.id;
+
       const chapa = normalize(col(row, "CHAPA", "MAT", "MATRICULA", "MATRÍCULA"));
       const nome = String(col(row, "NOME", "NOME COMPLETO", "COLABORADOR") ?? "").trim();
       const funcaoName = String(
@@ -99,7 +122,10 @@ export async function POST(req: NextRequest) {
       const situacao: Situacao = SIT_MAP[sitRaw] ?? "ATIVO";
       const admissao = parseDate(col(row, "ADMISSÃO", "ADMISSAO", "DT ADMISSÃO", "DT ADMISSAO", "DATA ADMISSAO", "DATA ADMISSÃO"));
       const demissao = parseDate(col(row, "DEMISSÃO", "DEMISSAO", "DT DEMISSÃO", "DT DEMISSAO", "DATA DEMISSAO", "DATA DEMISSÃO"));
+      const nascimento = parseDate(col(row, "NASCIMENTO", "DATA NASCIMENTO", "DT NASCIMENTO", "DATA DE NASCIMENTO"));
       const cpf = String(col(row, "CPF") ?? "").trim() || null;
+      const sexo = normalizeSexo(col(row, "SEXO", "GENERO", "GÊNERO"));
+      const salary = toNumber(col(row, "SALARIO ATUAL", "SALARIO", "SALÁRIO", "VENCIMENTO", "REMUNERACAO", "REMUNERAÇÃO"));
 
       if (!chapa || !nome) {
         errors.push(`Linha ${lineNum}: CHAPA e NOME são obrigatórios`);
@@ -143,12 +169,15 @@ export async function POST(req: NextRequest) {
       const payload = {
         nome,
         cpf,
+        sexo,
+        nascimento,
         funcaoId: funcao.id,
         carteiraId: carteiraId ?? null,
         baseId: baseId ?? null,
         admissao,
         demissao: demissao ?? null,
         situacao,
+        ...(salary !== null && { salary }),
       };
 
       if (existing) {

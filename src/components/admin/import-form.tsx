@@ -2,14 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, CheckCircle, XCircle, Loader2 } from "lucide-react";
-
-interface Project {
-  id: string;
-  code: string;
-  name: string;
-}
 
 interface ImportResult {
   created: number;
@@ -17,8 +10,7 @@ interface ImportResult {
   errors: string[];
 }
 
-export function ImportForm({ projects }: { projects: Project[] }) {
-  const [projectId, setProjectId] = useState<string>("");
+export function ImportForm() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -26,12 +18,11 @@ export function ImportForm({ projects }: { projects: Project[] }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file || !projectId) return;
+    if (!file) return;
 
     setStatus("loading");
     const form = new FormData();
     form.append("file", file);
-    form.append("projectId", projectId);
 
     try {
       const res = await fetch("/api/admin/import", { method: "POST", body: form });
@@ -47,22 +38,6 @@ export function ImportForm({ projects }: { projects: Project[] }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Projeto</label>
-        <Select value={projectId} onValueChange={setProjectId}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione o projeto…" />
-          </SelectTrigger>
-          <SelectContent>
-            {projects.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                #{p.code} · {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       <div className="space-y-2">
         <label className="text-sm font-medium">Arquivo .xlsx</label>
         <div
@@ -85,9 +60,9 @@ export function ImportForm({ projects }: { projects: Project[] }) {
         </div>
       </div>
 
-      <Button type="submit" disabled={!file || !projectId || status === "loading"} className="w-full">
+      <Button type="submit" disabled={!file || status === "loading"} className="w-full">
         {status === "loading" ? (
-          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Importando…</>
+          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Importando...</>
         ) : (
           <><Upload className="mr-2 h-4 w-4" /> Importar</>
         )}
@@ -103,7 +78,7 @@ export function ImportForm({ projects }: { projects: Project[] }) {
             <div className="text-amber-600">
               {result.errors.length} linha(s) com erro:
               <ul className="mt-1 list-disc list-inside">
-                {result.errors.slice(0, 5).map((e, i) => <li key={i}>{e}</li>)}
+                {result.errors.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
               </ul>
             </div>
           )}

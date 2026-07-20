@@ -151,6 +151,8 @@ model Employee {
   demissao   DateTime?
   situacao   Situacao  @default(ATIVO)
   salary     Decimal?  @db.Decimal(10, 2)
+  sexo       String?
+  nascimento DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 

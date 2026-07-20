@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { SalarioCharts } from "@/components/salarios/salario-charts";
 import { SalaryEmployeeTable, type SalaryEmployeeRow } from "@/components/salarios/salary-employee-table";
 import { SindicatoConfigEditor } from "@/components/salarios/sindicato-config-editor";
-import { SalaryImportForm } from "@/components/salarios/salary-import-form";
 import { DollarSign, Users, TrendingUp } from "lucide-react";
 
 export default async function SalariosPage({ params }: { params: { code: string } }) {
@@ -155,17 +154,14 @@ export default async function SalariosPage({ params }: { params: { code: string 
 
       {/* Gestão (só para isSalaryManager) */}
       {canManage && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <SindicatoConfigEditor
-            projectCode={project.code}
-            diariaAlimentacao={
-              project.sindicatoConfig?.diariaAlimentacao != null
-                ? Number(project.sindicatoConfig.diariaAlimentacao)
-                : null
-            }
-          />
-          <SalaryImportForm projectCode={project.code} />
-        </div>
+        <SindicatoConfigEditor
+          projectCode={project.code}
+          diariaAlimentacao={
+            project.sindicatoConfig?.diariaAlimentacao != null
+              ? Number(project.sindicatoConfig.diariaAlimentacao)
+              : null
+          }
+        />
       )}
 
       {/* Gráficos */}
