@@ -57,6 +57,17 @@ export async function POST(req: NextRequest, { params }: { params: { code: strin
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: true, defval: "" });
 
+  // Pré-carrega os ativos do projeto pra casar por função sem diferenciar maiúsculas/acentos
+  const activeEmployees = await db.employee.findMany({
+    where: { projectId: project.id, situacao: "ATIVO" },
+    select: { id: true, funcao: { select: { name: true } } },
+  });
+  const byFuncao = new Map<string, string[]>();
+  for (const emp of activeEmployees) {
+    const key = normalize(emp.funcao.name);
+    byFuncao.set(key, [...(byFuncao.get(key) ?? []), emp.id]);
+  }
+
   let updated = 0;
   const errors: string[] = [];
 
@@ -76,7 +87,14 @@ export async function POST(req: NextRequest, { params }: { params: { code: strin
         ...(seguroVida !== null && { seguroVida }),
       };
 
-      let targets: { id: string }[] = [];
+      if (salary === null && Object.keys(benefitData).length === 0) {
+        errors.push(
+          `Linha ${lineNum}: nenhuma coluna de valor reconhecida (SALARIO, PLANO SAUDE, PLANO ODONTOLOGICO ou SEGURO VIDA)`
+        );
+        continue;
+      }
+
+      let targetIds: string[] = [];
 
       if (matchBy === "CHAPA") {
         const chapa = normalize(col(row, "CHAPA", "MAT", "MATRICULA", "MATRÍCULA"));
@@ -91,32 +109,29 @@ export async function POST(req: NextRequest, { params }: { params: { code: strin
           errors.push(`Linha ${lineNum}: colaborador com CHAPA ${chapa} não encontrado neste projeto`);
           continue;
         }
-        targets = [employee];
+        targetIds = [employee.id];
       } else {
         const funcaoName = String(col(row, "FUNÇÃO", "FUNCAO", "CARGO") ?? "").trim();
         if (!funcaoName) {
           errors.push(`Linha ${lineNum}: FUNÇÃO obrigatória`);
           continue;
         }
-        targets = await db.employee.findMany({
-          where: { projectId: project.id, situacao: "ATIVO", funcao: { name: funcaoName } },
-          select: { id: true },
-        });
-        if (targets.length === 0) {
+        targetIds = byFuncao.get(normalize(funcaoName)) ?? [];
+        if (targetIds.length === 0) {
           errors.push(`Linha ${lineNum}: nenhum colaborador ativo com função "${funcaoName}"`);
           continue;
         }
       }
 
-      for (const employee of targets) {
+      for (const employeeId of targetIds) {
         if (salary !== null) {
-          await db.employee.update({ where: { id: employee.id }, data: { salary } });
+          await db.employee.update({ where: { id: employeeId }, data: { salary } });
         }
         if (Object.keys(benefitData).length > 0) {
           await db.salaryBenefit.upsert({
-            where: { employeeId: employee.id },
+            where: { employeeId },
             update: benefitData,
-            create: { employeeId: employee.id, ...benefitData },
+            create: { employeeId, ...benefitData },
           });
         }
         updated++;
