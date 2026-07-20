@@ -103,6 +103,7 @@ model Project {
   employees   Employee[]
   orgNodes    OrgNode[]
   permissions Permission[]
+  sindicatoConfig SindicatoConfig?
 }
 
 model Carteira {
@@ -136,6 +137,7 @@ model Funcao {
   employees Employee[]
 }
 
+// ─── Add salary relation to Employee model (for SalaryBenefit) ──────────────
 model Employee {
   id         String    @id @default(cuid())
   chapa      String
@@ -157,6 +159,7 @@ model Employee {
   carteira Carteira? @relation(fields: [carteiraId], references: [id])
   base     Base?     @relation(fields: [baseId], references: [id])
   orgNodes OrgNode[]
+  salaryBenefit SalaryBenefit?
 
   @@unique([chapa, projectId])
 }
@@ -214,4 +217,26 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+// ─── Salary models (encargos e benefícios) ────────────────────────────────
+
+model SalaryBenefit {
+  id                String   @id @default(cuid())
+  employeeId        String   @unique
+  planoSaude        Decimal? @db.Decimal(10, 2)
+  planoOdontologico Decimal? @db.Decimal(10, 2)
+  seguroVida        Decimal? @db.Decimal(10, 2)
+  updatedAt         DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+}
+
+model SindicatoConfig {
+  id                 String   @id @default(cuid())
+  projectId          String   @unique
+  diariaAlimentacao  Decimal  @db.Decimal(10, 2)
+  updatedAt          DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id])
 }

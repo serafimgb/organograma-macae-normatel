@@ -38,7 +38,7 @@ export default async function ImportPage() {
           <p className="mt-4 text-xs text-muted-foreground">
             • A coluna SIT aceita: ATIVO, DESLIGADO, AFASTADO, FÉRIAS, LICENÇA<br />
             • Datas devem estar no formato DD/MM/YYYY ou DD-MM-YYYY<br />
-            • A operação é um <strong>upsert</strong> por CHAPA + PROJETO — registros existentes são atualizados
+            • A operação é um <strong>upsert</strong> por CHAPA + PROJETO: registros existentes são atualizados
           </p>
         </CardContent>
       </Card>

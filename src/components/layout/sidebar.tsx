@@ -105,7 +105,7 @@ export function Sidebar({ projects, userRole, userName, tabMap }: SidebarProps) 
               >
                 <span className="flex items-center gap-2 truncate">
                   <FolderKanban className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{project.code} — {project.name}</span>
+                  <span className="truncate">{project.code} · {project.name}</span>
                 </span>
                 <ChevronDown
                   className={cn(

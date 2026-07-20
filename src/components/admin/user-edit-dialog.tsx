@@ -127,7 +127,7 @@ export function UserEditDialog({
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar permissões — {userName ?? userEmail}</DialogTitle>
+          <DialogTitle>Editar permissões · {userName ?? userEmail}</DialogTitle>
         </DialogHeader>
 
         {/* Role */}

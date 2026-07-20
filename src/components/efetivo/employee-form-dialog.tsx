@@ -134,7 +134,7 @@ export function EmployeeFormDialog({ projectId, carteiras, bases, funcoes, emplo
       </DialogTrigger>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Editar — ${employee!.nome}` : "Novo colaborador"}</DialogTitle>
+          <DialogTitle>{isEdit ? `Editar · ${employee!.nome}` : "Novo colaborador"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 mt-2">

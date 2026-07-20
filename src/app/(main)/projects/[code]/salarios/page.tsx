@@ -1,11 +1,14 @@
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { requirePermission, canViewSalaryInProject } from "@/lib/permissions";
+import { requirePermission, canViewSalaryInProject, isSalaryManagerInProject } from "@/lib/permissions";
+import { calcularCustoTotalColaborador } from "@/lib/calcularCustoTotal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SalarioCharts } from "@/components/salarios/salario-charts";
+import { SalaryEmployeeTable, type SalaryEmployeeRow } from "@/components/salarios/salary-employee-table";
+import { SindicatoConfigEditor } from "@/components/salarios/sindicato-config-editor";
+import { SalaryImportForm } from "@/components/salarios/salary-import-form";
 import { DollarSign, Users, TrendingUp } from "lucide-react";
 
 export default async function SalariosPage({ params }: { params: { code: string } }) {
@@ -14,7 +17,7 @@ export default async function SalariosPage({ params }: { params: { code: string 
 
   const project = await db.project.findUnique({
     where: { code: params.code },
-    select: { id: true, code: true, name: true },
+    select: { id: true, code: true, name: true, sindicatoConfig: true },
   });
   if (!project) notFound();
 
@@ -24,9 +27,11 @@ export default async function SalariosPage({ params }: { params: { code: string 
   );
   if (!hasAccess) redirect("/projects");
 
-  // LGPD: sem bypass para ADMIN — verificação explícita obrigatória
+  // LGPD: sem bypass para ADMIN, verificação explícita obrigatória
   const canSeeSalary = await canViewSalaryInProject(session.user.id, session.user.role, project.id);
   if (!canSeeSalary) redirect("/projects");
+
+  const canManage = await isSalaryManagerInProject(session.user.id, project.id);
 
   const employees = await db.employee.findMany({
     where: { projectId: project.id, situacao: { not: "DESLIGADO" } },
@@ -34,11 +39,13 @@ export default async function SalariosPage({ params }: { params: { code: string 
       funcao: { select: { name: true } },
       carteira: { select: { name: true } },
       base: { select: { name: true } },
+      salaryBenefit: true, // Incluir SalaryBenefit para cálculo de custo total
     },
     orderBy: { nome: "asc" },
   });
 
   const withSalary = employees.filter((e) => e.salary != null);
+
   const totalFolha = withSalary.reduce((acc, e) => acc + Number(e.salary), 0);
   const mediaSalarial = withSalary.length > 0 ? totalFolha / withSalary.length : 0;
 
@@ -65,8 +72,37 @@ export default async function SalariosPage({ params }: { params: { code: string 
     .sort((a, b) => b.media - a.media)
     .slice(0, 10);
 
+  // Custo total carregado (salário + encargos + diária) vs. folha base (só salário)
+  const custoTotalCarregado = withSalary.reduce(
+    (acc, e) =>
+      acc +
+      calcularCustoTotalColaborador({
+        salary: e.salary,
+        benefit: e.salaryBenefit,
+        diariaAlimentacao: project.sindicatoConfig?.diariaAlimentacao,
+      }),
+    0
+  );
+  const custoTotalData = [
+    { label: "Folha Base", total: totalFolha },
+    { label: "Custo Total Carregado", total: custoTotalCarregado },
+  ];
+
   const fmt = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const tableRows: SalaryEmployeeRow[] = employees.map((emp) => ({
+    id: emp.id,
+    nome: emp.nome,
+    funcao: emp.funcao.name,
+    carteira: emp.carteira?.name ?? null,
+    base: emp.base?.name ?? null,
+    situacao: emp.situacao,
+    salary: emp.salary != null ? Number(emp.salary) : null,
+    planoSaude: emp.salaryBenefit?.planoSaude != null ? Number(emp.salaryBenefit.planoSaude) : null,
+    planoOdontologico: emp.salaryBenefit?.planoOdontologico != null ? Number(emp.salaryBenefit.planoOdontologico) : null,
+    seguroVida: emp.salaryBenefit?.seguroVida != null ? Number(emp.salaryBenefit.seguroVida) : null,
+  }));
 
   return (
     <div className="p-8 space-y-8">
@@ -77,7 +113,7 @@ export default async function SalariosPage({ params }: { params: { code: string 
             <Badge variant="destructive" className="text-xs">Restrito LGPD</Badge>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
-          <p className="text-muted-foreground mt-1">Análise de salários — acesso controlado</p>
+          <p className="text-muted-foreground mt-1">Análise de salários · acesso controlado</p>
         </div>
       </div>
 
@@ -117,47 +153,26 @@ export default async function SalariosPage({ params }: { params: { code: string 
         </Card>
       </div>
 
+      {/* Gestão (só para isSalaryManager) */}
+      {canManage && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SindicatoConfigEditor
+            projectCode={project.code}
+            diariaAlimentacao={
+              project.sindicatoConfig?.diariaAlimentacao != null
+                ? Number(project.sindicatoConfig.diariaAlimentacao)
+                : null
+            }
+          />
+          <SalaryImportForm projectCode={project.code} />
+        </div>
+      )}
+
       {/* Gráficos */}
-      <SalarioCharts carteiraData={carteiraData} funcaoData={funcaoData} />
+      <SalarioCharts carteiraData={carteiraData} funcaoData={funcaoData} custoTotalData={custoTotalData} />
 
       {/* Tabela individual */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Colaboradores</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Função</TableHead>
-                <TableHead>Carteira</TableHead>
-                <TableHead>Base</TableHead>
-                <TableHead>Situação</TableHead>
-                <TableHead className="text-right">Salário</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {employees.map((emp) => (
-                <TableRow key={emp.id}>
-                  <TableCell className="font-medium">{emp.nome}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{emp.funcao.name}</TableCell>
-                  <TableCell>{emp.carteira?.name ?? "—"}</TableCell>
-                  <TableCell>{emp.base?.name ?? "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant={emp.situacao === "ATIVO" ? "default" : "secondary"} className="text-xs">
-                      {emp.situacao}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {emp.salary != null ? fmt(Number(emp.salary)) : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <SalaryEmployeeTable employees={tableRows} projectCode={project.code} canManage={canManage} />
     </div>
   );
 }

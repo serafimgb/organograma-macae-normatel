@@ -56,7 +56,7 @@ export function ImportForm({ projects }: { projects: Project[] }) {
           <SelectContent>
             {projects.map((p) => (
               <SelectItem key={p.id} value={p.id}>
-                #{p.code} — {p.name}
+                #{p.code} · {p.name}
               </SelectItem>
             ))}
           </SelectContent>

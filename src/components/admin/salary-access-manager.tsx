@@ -67,7 +67,7 @@ export function SalaryAccessManager({ managedProjects }: { managedProjects: Mana
         <Card key={proj.id}>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">
-              #{proj.code} — {proj.name}
+              #{proj.code} · {proj.name}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">

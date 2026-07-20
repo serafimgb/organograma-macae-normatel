@@ -54,7 +54,7 @@ export function UserApprovalDialog({ userId, userName, userEmail }: Props) {
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Aprovar acesso — {userName ?? userEmail}</DialogTitle>
+          <DialogTitle>Aprovar acesso · {userName ?? userEmail}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 mt-1">

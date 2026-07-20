@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatBRL(value: number | null | undefined): string {
-  if (value == null) return "—";
+  if (value == null) return "-";
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
@@ -14,6 +14,6 @@ export function formatBRL(value: number | null | undefined): string {
 }
 
 export function formatDate(date: Date | string | null | undefined): string {
-  if (!date) return "—";
+  if (!date) return "-";
   return new Intl.DateTimeFormat("pt-BR").format(new Date(date));
 }

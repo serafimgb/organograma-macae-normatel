@@ -63,7 +63,7 @@ export function MatrizCarteiraBase({ data, bases }: MatrizCarteiraBaseProps) {
                       heatColor(val, max)
                     )}
                   >
-                    {val || "—"}
+                    {val || "-"}
                   </td>
                 );
               })}

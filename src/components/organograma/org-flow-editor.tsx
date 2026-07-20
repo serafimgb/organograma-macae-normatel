@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
   ReactFlow,
   Background,
@@ -22,6 +23,7 @@ import {
 // @ts-ignore
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
+import { useEntranceMotion } from "@/lib/motion";
 import {
   Plus, Save, Check, Trash2, MessageSquare, X, FolderPlus, LogOut,
   Search, Grid2x2, Grid2x2Check, Tag, Palette, List,
@@ -50,6 +52,7 @@ interface OrgNodeData extends Record<string, unknown> {
   slots?: SlotData[];
   searchActive?: boolean;
   searchMatch?: boolean;
+  entryIndex?: number;
   onLabelChange?: (id: string, val: string) => void;
   onNomeChange?: (id: string, val: string) => void;
   onCommentChange?: (id: string, val: string) => void;
@@ -186,11 +189,24 @@ function OrgNodeComponent({ id, data, selected }: { id: string; data: OrgNodeDat
   const dimmed = data.searchActive && !data.searchMatch;
   const highlighted = data.searchActive && data.searchMatch;
 
+  // Efeito de hover suave nos cards (microinteração)
+  const [isHovered, setIsHovered] = useState(false);
+  const { hoverLift, reduce } = useEntranceMotion();
+  const entryDelay = Math.min((data.entryIndex ?? 0) * 0.015, 0.6);
+  const cardOpacity = highlighted ? 1 : selected || isHovered ? 1 : dimmed ? 0.25 : 1;
   const handleStyle = { background: accent, border: "2px solid white", width: 10, height: 10, borderRadius: "50%" };
 
   return (
     <>
       <Handle type="target" position={Position.Top} style={handleStyle} />
+      <motion.div
+        initial={reduce ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : entryDelay, ease: "easeOut" }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        {...hoverLift}
+      >
       <div
         style={{
           width: 165,
@@ -200,7 +216,7 @@ function OrgNodeComponent({ id, data, selected }: { id: string; data: OrgNodeDat
           boxShadow: highlighted ? "0 0 0 2px #fef3c7" : selected ? "0 0 0 2px #e0e7ff" : "0 1px 3px rgba(0,0,0,0.06)",
           borderRadius: 5,
           overflow: "hidden",
-          opacity: dimmed ? 0.25 : 1,
+          opacity: cardOpacity,
           transition: "opacity 0.15s",
         }}
         className="font-sans"
@@ -268,6 +284,7 @@ function OrgNodeComponent({ id, data, selected }: { id: string; data: OrgNodeDat
           </div>
         )}
       </div>
+      </motion.div>
       <Handle type="source" position={Position.Bottom} style={handleStyle} />
     </>
   );
@@ -284,11 +301,24 @@ function PositionGroupNode({ id, data, selected }: { id: string; data: OrgNodeDa
   const dimmed = data.searchActive && !data.searchMatch;
   const highlighted = data.searchActive && data.searchMatch;
 
+  // Efeito de hover suave nos cards (microinteração)
+  const [isHovered, setIsHovered] = useState(false);
+  const { hoverLift, reduce } = useEntranceMotion();
+  const entryDelay = Math.min((data.entryIndex ?? 0) * 0.015, 0.6);
+  const cardOpacity = highlighted ? 1 : selected || isHovered ? 1 : dimmed ? 0.25 : 1;
   const handleStyle = { background: accent, border: "2px solid white", width: 10, height: 10, borderRadius: "50%" };
 
   return (
     <>
       <Handle type="target" position={Position.Top} style={handleStyle} />
+      <motion.div
+        initial={reduce ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : entryDelay, ease: "easeOut" }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        {...hoverLift}
+      >
       <div
         style={{
           width: 200,
@@ -298,7 +328,7 @@ function PositionGroupNode({ id, data, selected }: { id: string; data: OrgNodeDa
           boxShadow: highlighted ? "0 0 0 2px #fef3c7" : selected ? "0 0 0 2px #e0e7ff" : "0 1px 3px rgba(0,0,0,0.06)",
           borderRadius: 5,
           overflow: "hidden",
-          opacity: dimmed ? 0.25 : 1,
+          opacity: cardOpacity,
           transition: "opacity 0.15s",
         }}
         className="font-sans"
@@ -315,60 +345,58 @@ function PositionGroupNode({ id, data, selected }: { id: string; data: OrgNodeDa
         </div>
 
         {/* Linhas de colaboradores */}
-        {slots.map((slot) => {
-          const isVagaSlot = !slot.displayNome && !slot.employeeNome;
-          const sit = slot.situacao ?? "ATIVO";
-          const slotSitStyle = SITUACAO_STYLE[sit] ?? SITUACAO_STYLE.ATIVO;
-          const showSlotStatus = !isVagaSlot && slot.situacao && slot.situacao !== "ATIVO";
-          const slotName = slot.displayNome || slot.employeeNome;
+        {slots.map((slot) => (
+          <motion.div 
+            key={slot.slotId}
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, delay: slot.slotId === slots[0]?.slotId ? 0 : 0.03 * (slots.indexOf(slot) + 1), ease: "easeOut" }}
+          >
+            {(() => {
+              const isVagaSlot = !slot.displayNome && !slot.employeeNome;
+              const sit = slot.situacao ?? "ATIVO";
+              const slotSitStyle = SITUACAO_STYLE[sit] ?? SITUACAO_STYLE.ATIVO;
+              const showSlotStatus = !isVagaSlot && slot.situacao && slot.situacao !== "ATIVO";
+              const slotName = slot.displayNome || slot.employeeNome;
 
-          return (
-            <div key={slot.slotId}>
-              <div className="px-3 py-1.5 flex items-center gap-1 border-t border-slate-50 group">
-                <div className="flex-1 min-w-0">
-                  {canEditLabel ? (
-                    <InlineEdit
-                      value={slotName ?? "VAGA EM ABERTO"}
-                      onSave={(v) => data.onSlotNomeChange!(id, slot.slotId, v)}
-                      className={`text-[10px] leading-tight block cursor-text truncate ${isVagaSlot ? "font-semibold text-amber-600 hover:text-amber-700" : "text-slate-500 hover:text-slate-700"}`}
-                      inputClassName="w-full bg-transparent border-b border-slate-200 outline-none text-[10px] text-slate-600"
-                    />
-                  ) : isVagaSlot ? (
-                    <span className="text-[10px] font-semibold text-amber-600">VAGA EM ABERTO</span>
-                  ) : (
-                    <span className="text-[10px] text-slate-500 leading-tight block truncate">{slotName}</span>
+              return (
+                <div className="px-3 py-1.5 flex items-center gap-1 border-t border-slate-50 group">
+                  <div className="flex-1 min-w-0">
+                    {canEditLabel ? (
+                      <InlineEdit
+                        value={slotName ?? "VAGA EM ABERTO"}
+                        onSave={(v) => data.onSlotNomeChange!(id, slot.slotId, v)}
+                        className={`text-[10px] leading-tight block cursor-text truncate ${isVagaSlot ? "font-semibold text-amber-600 hover:text-amber-700" : "text-slate-500 hover:text-slate-700"}`}
+                        inputClassName="w-full bg-transparent border-b border-slate-200 outline-none text-[10px] text-slate-600"
+                      />
+                    ) : isVagaSlot ? (
+                      <span className="text-[10px] font-semibold text-amber-600">VAGA EM ABERTO</span>
+                    ) : (
+                      <span className="text-[10px] text-slate-500 leading-tight block truncate">{slotName}</span>
+                    )}
+                  </div>
+                  {showSlotStatus && (
+                    <span style={{ backgroundColor: slotSitStyle.dot }}
+                      className="shrink-0 text-white text-[8px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                      {slotSitStyle.text}
+                    </span>
+                  )}
+                  <CommentIndicator
+                    comment={slot.comment}
+                    canEdit={canEditComment}
+                    onEdit={canEditComment ? () => setEditingSlotComment((v) => v === slot.slotId ? null : slot.slotId) : undefined}
+                  />
+                  {canEditLabel && (
+                    <button onClick={(e) => { e.stopPropagation(); data.onRemoveSlot!(id, slot.slotId); }}
+                      className="shrink-0 text-slate-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <X className="h-3 w-3" />
+                    </button>
                   )}
                 </div>
-                {showSlotStatus && (
-                  <span style={{ backgroundColor: slotSitStyle.dot }}
-                    className="shrink-0 text-white text-[8px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                    {slotSitStyle.text}
-                  </span>
-                )}
-                <CommentIndicator
-                  comment={slot.comment}
-                  canEdit={canEditComment}
-                  onEdit={canEditComment ? () => setEditingSlotComment((v) => v === slot.slotId ? null : slot.slotId) : undefined}
-                />
-                {canEditLabel && (
-                  <button onClick={(e) => { e.stopPropagation(); data.onRemoveSlot!(id, slot.slotId); }}
-                    className="shrink-0 text-slate-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-              {editingSlotComment === slot.slotId && canEditComment && (
-                <div className="border-t border-slate-100 bg-slate-50">
-                  <CommentEditor
-                    comment={slot.comment}
-                    onSave={(v) => data.onSlotCommentChange!(id, slot.slotId, v)}
-                    onClose={() => setEditingSlotComment(null)}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
+              );
+            })()}
+          </motion.div>
+        ))}
 
         {/* Botão adicionar (edit mode) */}
         {canEditLabel && (
@@ -378,6 +406,7 @@ function PositionGroupNode({ id, data, selected }: { id: string; data: OrgNodeDa
           </button>
         )}
       </div>
+      </motion.div>
       <Handle type="source" position={Position.Bottom} style={handleStyle} />
     </>
   );
@@ -538,7 +567,9 @@ const DEFAULT_EDGE = {
 const SNAP_GRID: [number, number] = [20, 20];
 
 export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit, canEditComments }: OrgFlowEditorProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState<OrgFlowNode>(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState<OrgFlowNode>(
+    initialNodes.map((n, i) => ({ ...n, data: { ...n.data, entryIndex: i } }))
+  );
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -548,6 +579,18 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit, 
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [pendingFitNode, setPendingFitNode] = useState<string | null>(null);
+
+  // ── Preferência de redução de movimento (acessibilidade) ────────────────────
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (mediaQuery.matches) {
+      setSnapEnabled(false); // Desativa grade para reduzir complexidade visual
+    }
+    
+    const handleChange = () => setSnapEnabled(!mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
 
   // ── Callbacks de edição ──────────────────────────────────────────────────
   const onLabelChange = useCallback((nodeId: string, val: string) => {
@@ -834,7 +877,13 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit, 
         <FitNewNode nodeId={pendingFitNode} onDone={() => setPendingFitNode(null)} />
 
         {canEdit && (
-          <Panel position="top-right" className="flex flex-col gap-2 items-end">
+          <motion.div 
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="flex flex-col gap-2 items-end"
+          >
+            <Panel position="top-right">
             <div className="flex flex-wrap gap-2 justify-end">
               <Button size="sm" variant="outline" onClick={addNode}>
                 <Plus className="mr-1 h-4 w-4" /> Nova caixa
@@ -906,6 +955,7 @@ export function OrgFlowEditor({ projectId, initialNodes, initialEdges, canEdit, 
               • <strong>Comentário:</strong> ícone <MessageSquare className="inline h-3 w-3" /> na caixa
             </div>
           </Panel>
+          </motion.div>
         )}
 
         {!canEdit && canEditComments && (

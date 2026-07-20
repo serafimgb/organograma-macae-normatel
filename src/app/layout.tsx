@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Normatel — Gestão de Projetos",
+  title: "Normatel · Gestão de Projetos",
   description: "Sistema de gestão de organogramas e efetivo",
 };
 

@@ -139,7 +139,7 @@ export default async function AdminUsersPage() {
               <TableBody>
                 {pendingUsers.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name ?? "—"}</TableCell>
+                    <TableCell className="font-medium">{user.name ?? "-"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -197,8 +197,8 @@ export default async function AdminUsersPage() {
 
                 return (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name ?? "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{user.email ?? "—"}</TableCell>
+                    <TableCell className="font-medium">{user.name ?? "-"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{user.email ?? "-"}</TableCell>
                     <TableCell>
                       <Badge variant={sb.variant}>{sb.label}</Badge>
                     </TableCell>
