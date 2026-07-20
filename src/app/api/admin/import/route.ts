@@ -82,8 +82,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ errors: ["Arquivo é obrigatório"] }, { status: 400 });
   }
 
-  const projects = await db.project.findMany({ select: { id: true, name: true } });
+  const projects = await db.project.findMany({ select: { id: true, code: true, name: true } });
+  const projectByCode = new Map(projects.map((p) => [normalize(p.code), p]));
   const projectByName = new Map(projects.map((p) => [normalize(p.name), p]));
+
+  /** A coluna PROJETO costuma vir como "PROJETO 736 - MANUTENCAO ... -SINDMETAL":
+   *  extrai o código (736) em vez de comparar a string inteira, e também o
+   *  sindicato (último trecho após hífen), que hoje só é guardado — a lógica
+   *  de diária por sindicato entra quando os valores forem definidos. */
+  function resolveProject(raw: string): { project: { id: string }; sindicato: string | null } | null {
+    const normRaw = normalize(raw);
+
+    const prefixMatch = raw.match(/PROJETO\s+([A-Za-zÀ-ú0-9-]+)\s*-?\s*(.*)/i);
+    if (prefixMatch) {
+      const hit = projectByCode.get(normalize(prefixMatch[1]));
+      if (hit) {
+        const rest = prefixMatch[2].split("-");
+        const sindicato = rest.length > 1 ? rest[rest.length - 1].trim() || null : null;
+        return { project: hit, sindicato };
+      }
+    }
+
+    const exactCode = projectByCode.get(normRaw);
+    if (exactCode) return { project: exactCode, sindicato: null };
+
+    for (const [code, project] of projectByCode) {
+      const token = new RegExp(`(^|[^A-Z0-9])${code}([^A-Z0-9]|$)`);
+      if (token.test(normRaw)) return { project, sindicato: null };
+    }
+
+    const nameHit = projectByName.get(normRaw);
+    return nameHit ? { project: nameHit, sindicato: null } : null;
+  }
 
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: "array", cellDates: true });
@@ -104,12 +134,13 @@ export async function POST(req: NextRequest) {
         errors.push(`Linha ${lineNum}: PROJETO obrigatório`);
         continue;
       }
-      const project = projectByName.get(normalize(projetoName));
-      if (!project) {
+      const resolved = resolveProject(projetoName);
+      if (!resolved) {
         errors.push(`Linha ${lineNum}: projeto "${projetoName}" não encontrado`);
         continue;
       }
-      const projectId = project.id;
+      const projectId = resolved.project.id;
+      const sindicato = resolved.sindicato;
 
       const chapa = normalize(col(row, "CHAPA", "MAT", "MATRICULA", "MATRÍCULA"));
       const nome = String(col(row, "NOME", "NOME COMPLETO", "COLABORADOR") ?? "").trim();
@@ -171,6 +202,7 @@ export async function POST(req: NextRequest) {
         cpf,
         sexo,
         nascimento,
+        sindicato,
         funcaoId: funcao.id,
         carteiraId: carteiraId ?? null,
         baseId: baseId ?? null,

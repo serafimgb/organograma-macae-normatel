@@ -33,7 +33,7 @@ export default async function ImportPage() {
             ))}
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            • A coluna PROJETO deve ter o nome do projeto exatamente como cadastrado (maiúsculas/acentos não importam)<br />
+            • A coluna PROJETO pode ter o código do projeto embutido no texto (ex: "PROJETO 736 - MANUTENÇÃO...-SINDMETAL") — o código e o sindicato (último trecho após hífen) são extraídos automaticamente<br />
             • A coluna SITUAÇÃO aceita: ATIVO, DESLIGADO, AFASTADO, FÉRIAS, LICENÇA<br />
             • Datas devem estar no formato DD/MM/YYYY ou DD-MM-YYYY<br />
             • A operação é um <strong>upsert</strong> por CHAPA + PROJETO: registros existentes são atualizados

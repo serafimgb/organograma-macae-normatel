@@ -153,6 +153,7 @@ model Employee {
   salary     Decimal?  @db.Decimal(10, 2)
   sexo       String?
   nascimento DateTime?
+  sindicato  String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
