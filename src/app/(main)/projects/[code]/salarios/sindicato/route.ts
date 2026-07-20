@@ -22,15 +22,20 @@ export async function PUT(req: NextRequest, { params }: { params: { code: string
     );
   }
 
-  const { diariaAlimentacao } = await req.json();
+  const { sindicato, diariaAlimentacao } = await req.json();
+  if (typeof sindicato !== "string") {
+    return NextResponse.json({ error: "sindicato inválido" }, { status: 400 });
+  }
   if (diariaAlimentacao === undefined || diariaAlimentacao === null || isNaN(Number(diariaAlimentacao))) {
     return NextResponse.json({ error: "diariaAlimentacao inválida" }, { status: 400 });
   }
 
+  const sindicatoTrim = sindicato.trim();
+
   await db.sindicatoConfig.upsert({
-    where: { projectId: project.id },
+    where: { projectId_sindicato: { projectId: project.id, sindicato: sindicatoTrim } },
     update: { diariaAlimentacao: Number(diariaAlimentacao) },
-    create: { projectId: project.id, diariaAlimentacao: Number(diariaAlimentacao) },
+    create: { projectId: project.id, sindicato: sindicatoTrim, diariaAlimentacao: Number(diariaAlimentacao) },
   });
 
   await db.auditLog.create({
@@ -39,7 +44,7 @@ export async function PUT(req: NextRequest, { params }: { params: { code: string
       action: "UPDATE_SINDICATO_CONFIG",
       entityType: "SindicatoConfig",
       entityId: project.id,
-      changes: { diariaAlimentacao },
+      changes: { sindicato: sindicatoTrim, diariaAlimentacao },
     },
   });
 

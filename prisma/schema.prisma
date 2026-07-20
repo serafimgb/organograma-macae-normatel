@@ -103,7 +103,7 @@ model Project {
   employees   Employee[]
   orgNodes    OrgNode[]
   permissions Permission[]
-  sindicatoConfig SindicatoConfig?
+  sindicatoConfigs SindicatoConfig[]
 }
 
 model Carteira {
@@ -237,9 +237,12 @@ model SalaryBenefit {
 
 model SindicatoConfig {
   id                 String   @id @default(cuid())
-  projectId          String   @unique
+  projectId          String
+  sindicato          String   // "" representa o valor padrão do projeto (sem sindicato específico)
   diariaAlimentacao  Decimal  @db.Decimal(10, 2)
   updatedAt          DateTime @updatedAt
 
   project Project @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, sindicato])
 }

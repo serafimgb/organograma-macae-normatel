@@ -32,7 +32,7 @@ export async function PUT(
 
   try {
     const body = await req.json();
-    const { salary, planoSaude, planoOdontologico, seguroVida, diariaAlimentacao } = body;
+    const { salary, planoSaude, planoOdontologico, seguroVida } = body;
 
     if (salary !== undefined && salary !== null) {
       await db.employee.update({ where: { id: employee.id }, data: { salary: Number(salary) } });
@@ -65,23 +65,6 @@ export async function PUT(
           entityType: "SalaryBenefit",
           entityId: employee.id,
           changes: benefitData,
-        },
-      });
-    }
-
-    if (diariaAlimentacao !== undefined && diariaAlimentacao !== null) {
-      await db.sindicatoConfig.upsert({
-        where: { projectId: project.id },
-        update: { diariaAlimentacao: Number(diariaAlimentacao) },
-        create: { projectId: project.id, diariaAlimentacao: Number(diariaAlimentacao) },
-      });
-      await db.auditLog.create({
-        data: {
-          userId: session.user.id,
-          action: "UPDATE_SALARY",
-          entityType: "SindicatoConfig",
-          entityId: project.id,
-          changes: { diariaAlimentacao },
         },
       });
     }

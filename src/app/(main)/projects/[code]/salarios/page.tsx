@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { requirePermission, canViewSalaryInProject, isSalaryManagerInProject } from "@/lib/permissions";
-import { calcularCustoTotalColaborador } from "@/lib/calcularCustoTotal";
+import { calcularCustoTotalColaborador, diasUteisNoMes, resolveDiariaRate } from "@/lib/calcularCustoTotal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SalarioCharts } from "@/components/salarios/salario-charts";
@@ -16,7 +16,7 @@ export default async function SalariosPage({ params }: { params: { code: string 
 
   const project = await db.project.findUnique({
     where: { code: params.code },
-    select: { id: true, code: true, name: true, sindicatoConfig: true },
+    select: { id: true, code: true, name: true, sindicatoConfigs: true },
   });
   if (!project) notFound();
 
@@ -71,14 +71,16 @@ export default async function SalariosPage({ params }: { params: { code: string 
     .sort((a, b) => b.media - a.media)
     .slice(0, 10);
 
-  // Custo total carregado (salário + encargos + diária) vs. folha base (só salário)
+  // Custo total carregado (salário + encargos + diária do sindicato x dias úteis) vs. folha base (só salário)
+  const diasUteis = diasUteisNoMes();
   const custoTotalCarregado = withSalary.reduce(
     (acc, e) =>
       acc +
       calcularCustoTotalColaborador({
         salary: e.salary,
         benefit: e.salaryBenefit,
-        diariaAlimentacao: project.sindicatoConfig?.diariaAlimentacao,
+        diariaRate: resolveDiariaRate(project.sindicatoConfigs, e.sindicato),
+        diasUteis,
       }),
     0
   );
@@ -156,11 +158,12 @@ export default async function SalariosPage({ params }: { params: { code: string 
       {canManage && (
         <SindicatoConfigEditor
           projectCode={project.code}
-          diariaAlimentacao={
-            project.sindicatoConfig?.diariaAlimentacao != null
-              ? Number(project.sindicatoConfig.diariaAlimentacao)
-              : null
-          }
+          configs={project.sindicatoConfigs.map((c) => ({
+            sindicato: c.sindicato,
+            diariaAlimentacao: Number(c.diariaAlimentacao),
+          }))}
+          sindicatosPresentes={[...new Set(employees.map((e) => e.sindicato).filter((s): s is string => !!s))]}
+          diasUteis={diasUteis}
         />
       )}
 
