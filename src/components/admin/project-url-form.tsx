@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, Loader2 } from "lucide-react";
 
 interface ProjectUrlFormProps {
@@ -10,10 +11,20 @@ interface ProjectUrlFormProps {
   code: string;
   name: string;
   organogramUrl: string | null;
+  holidayCalendarId: string | null;
+  calendars: { id: string; name: string }[];
 }
 
-export function ProjectUrlForm({ projectId, code, name, organogramUrl }: ProjectUrlFormProps) {
+export function ProjectUrlForm({
+  projectId,
+  code,
+  name,
+  organogramUrl,
+  holidayCalendarId,
+  calendars,
+}: ProjectUrlFormProps) {
   const [url, setUrl] = useState(organogramUrl ?? "");
+  const [calendarId, setCalendarId] = useState(holidayCalendarId ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -23,14 +34,14 @@ export function ProjectUrlForm({ projectId, code, name, organogramUrl }: Project
     await fetch(`/api/admin/projects/${projectId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ organogramUrl: url.trim() }),
+      body: JSON.stringify({ organogramUrl: url.trim(), holidayCalendarId: calendarId || null }),
     });
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
 
-  const isDirty = url.trim() !== (organogramUrl ?? "");
+  const isDirty = url.trim() !== (organogramUrl ?? "") || calendarId !== (holidayCalendarId ?? "");
 
   return (
     <div className="space-y-1.5">
@@ -45,6 +56,17 @@ export function ProjectUrlForm({ projectId, code, name, organogramUrl }: Project
           onChange={(e) => { setUrl(e.target.value); setSaved(false); }}
           className="flex-1 text-sm"
         />
+        <Select value={calendarId || "_none_"} onValueChange={(v) => { setCalendarId(v === "_none_" ? "" : v); setSaved(false); }}>
+          <SelectTrigger className="w-48 text-sm">
+            <SelectValue placeholder="Calendário de feriados" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_none_">Sem calendário</SelectItem>
+            {calendars.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button
           size="sm"
           onClick={handleSave}

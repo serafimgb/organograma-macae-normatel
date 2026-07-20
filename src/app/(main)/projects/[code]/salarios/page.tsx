@@ -16,7 +16,13 @@ export default async function SalariosPage({ params }: { params: { code: string 
 
   const project = await db.project.findUnique({
     where: { code: params.code },
-    select: { id: true, code: true, name: true, sindicatoConfigs: true },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      sindicatoConfigs: true,
+      holidayCalendar: { select: { holidays: { select: { date: true } } } },
+    },
   });
   if (!project) notFound();
 
@@ -72,7 +78,8 @@ export default async function SalariosPage({ params }: { params: { code: string 
     .slice(0, 10);
 
   // Custo total carregado (salário + encargos + diária do sindicato x dias úteis) vs. folha base (só salário)
-  const diasUteis = diasUteisNoMes();
+  const holidayDates = project.holidayCalendar?.holidays.map((h) => h.date) ?? [];
+  const diasUteis = diasUteisNoMes(new Date(), holidayDates);
   const custoTotalCarregado = withSalary.reduce(
     (acc, e) =>
       acc +

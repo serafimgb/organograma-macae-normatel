@@ -8,9 +8,16 @@ export default async function AdminProjectsPage() {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") redirect("/projects");
 
-  const projects = await db.project.findMany({
-    orderBy: { code: "asc" },
-  }) as unknown as Array<{ id: string; code: string; name: string; organogramUrl: string | null }>;
+  const [projects, calendars] = await Promise.all([
+    db.project.findMany({ orderBy: { code: "asc" } }) as unknown as Array<{
+      id: string;
+      code: string;
+      name: string;
+      organogramUrl: string | null;
+      holidayCalendarId: string | null;
+    }>,
+    db.holidayCalendar.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ]);
 
   return (
     <div className="p-8 space-y-6 max-w-3xl">
@@ -33,6 +40,8 @@ export default async function AdminProjectsPage() {
               code={project.code}
               name={project.name}
               organogramUrl={project.organogramUrl}
+              holidayCalendarId={project.holidayCalendarId}
+              calendars={calendars}
             />
           ))}
           {projects.length === 0 && (

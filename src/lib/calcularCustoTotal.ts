@@ -8,10 +8,11 @@ function normalizeSindicato(raw: string | null | undefined): string {
   return (raw ?? "").trim().toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
-/** Conta os dias úteis (segunda a sexta) do mês de referência. */
-export function diasUteisNoMes(ref: Date = new Date()): number {
+/** Conta os dias úteis (segunda a sexta, descontando feriados do calendário informado) do mês de referência. */
+export function diasUteisNoMes(ref: Date = new Date(), holidayDates: Date[] = []): number {
+  const holidaySet = new Set(holidayDates.map((d) => d.toISOString().slice(0, 10)));
   const dias = eachDayOfInterval({ start: startOfMonth(ref), end: endOfMonth(ref) });
-  return dias.filter((d) => !isWeekend(d)).length;
+  return dias.filter((d) => !isWeekend(d) && !holidaySet.has(d.toISOString().slice(0, 10))).length;
 }
 
 /** Acha a diária do sindicato do colaborador; cai no valor "padrão" (sindicato "") do projeto se não achar. */
@@ -53,15 +54,20 @@ export function calcularCustoTotalColaborador(input: {
 export async function getEmployeeTotalCost(employeeId: string): Promise<number | null> {
   const employee = await db.employee.findUnique({
     where: { id: employeeId },
-    include: { salaryBenefit: true, project: { include: { sindicatoConfigs: true } } },
+    include: {
+      salaryBenefit: true,
+      project: { include: { sindicatoConfigs: true, holidayCalendar: { include: { holidays: true } } } },
+    },
   });
   if (!employee) return null;
 
   const diariaRate = resolveDiariaRate(employee.project.sindicatoConfigs, employee.sindicato);
+  const holidayDates = employee.project.holidayCalendar?.holidays.map((h) => h.date) ?? [];
 
   return calcularCustoTotalColaborador({
     salary: employee.salary,
     benefit: employee.salaryBenefit,
     diariaRate,
+    diasUteis: diasUteisNoMes(new Date(), holidayDates),
   });
 }

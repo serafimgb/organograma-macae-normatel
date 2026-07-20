@@ -97,6 +97,7 @@ model Project {
   name           String
   description    String?
   organogramUrl  String?
+  holidayCalendarId String?
 
   carteiras   Carteira[]
   bases       Base[]
@@ -104,6 +105,27 @@ model Project {
   orgNodes    OrgNode[]
   permissions Permission[]
   sindicatoConfigs SindicatoConfig[]
+  holidayCalendar   HolidayCalendar? @relation(fields: [holidayCalendarId], references: [id])
+}
+
+model HolidayCalendar {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+
+  holidays Holiday[]
+  projects Project[]
+}
+
+model Holiday {
+  id         String   @id @default(cuid())
+  calendarId String
+  date       DateTime
+  name       String
+
+  calendar HolidayCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarId, date])
 }
 
 model Carteira {

@@ -16,6 +16,7 @@ import {
   DollarSign,
   ExternalLink,
   Settings,
+  CalendarDays,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
@@ -163,6 +164,7 @@ export function Sidebar({ projects, userRole, userName, tabMap }: SidebarProps) 
             {[
               { href: "/admin/users", label: "Usuários & Permissões", icon: Users },
               { href: "/admin/projects", label: "Config. Projetos", icon: Settings },
+              { href: "/admin/calendars", label: "Calendários", icon: CalendarDays },
               { href: "/admin/import", label: "Importar Excel", icon: Upload },
             ].map(({ href, label, icon: Icon }) => (
               <Link

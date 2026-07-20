@@ -11,11 +11,15 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { organogramUrl } = await req.json();
+  const body = await req.json();
+
+  const data: { organogramUrl?: string | null; holidayCalendarId?: string | null } = {};
+  if ("organogramUrl" in body) data.organogramUrl = body.organogramUrl || null;
+  if ("holidayCalendarId" in body) data.holidayCalendarId = body.holidayCalendarId || null;
 
   await db.project.update({
     where: { id: params.projectId },
-    data: { organogramUrl: organogramUrl || null },
+    data,
   });
 
   return NextResponse.json({ ok: true });
