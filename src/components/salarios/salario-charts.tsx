@@ -76,7 +76,7 @@ export function SalarioCharts({
               <CardTitle>Custo Total Carregado do Projeto</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={Math.max(220, custoTotalData.length * 60)}>
                 <BarChart data={custoTotalData} layout="vertical" margin={{ top: 4, right: 32, bottom: 4, left: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />

@@ -20,32 +20,67 @@ export function resolveDiariaRate(
   sindicatoConfigs: { sindicato: string; diariaAlimentacao: Money }[],
   employeeSindicato: string | null | undefined
 ): number {
+  return resolveDiariaInfo(sindicatoConfigs, employeeSindicato).rate;
+}
+
+export interface DiariaInfo {
+  rate: number;
+  /** "exact": tem SindicatoConfig pro sindicato do colaborador. "default": caiu no valor padrão do projeto.
+   *  "missing": não tem sindicato cadastrado E não tem valor padrão — o vale sai zerado sem o gestor saber por quê. */
+  source: "exact" | "default" | "missing";
+}
+
+export function resolveDiariaInfo(
+  sindicatoConfigs: { sindicato: string; diariaAlimentacao: Money }[],
+  employeeSindicato: string | null | undefined
+): DiariaInfo {
   const key = normalizeSindicato(employeeSindicato);
   const exact = sindicatoConfigs.find((c) => normalizeSindicato(c.sindicato) === key);
-  if (exact) return Number(exact.diariaAlimentacao ?? 0);
+  if (exact) return { rate: Number(exact.diariaAlimentacao ?? 0), source: "exact" };
   const fallback = sindicatoConfigs.find((c) => normalizeSindicato(c.sindicato) === "");
-  return fallback ? Number(fallback.diariaAlimentacao ?? 0) : 0;
+  if (fallback) return { rate: Number(fallback.diariaAlimentacao ?? 0), source: "default" };
+  return { rate: 0, source: "missing" };
 }
 
 /**
- * Custo total "carregado" de um colaborador: salary + planoSaude + planoOdontologico + seguroVida
- * + (diária do sindicato x dias úteis do mês).
+ * Salário efetivo do colaborador, incluindo o adicional (insalubridade, periculosidade
+ * etc, informado em % sobre o salário-base). Esse valor entra na parcela "salário" do
+ * custo total — não afeta a diária de alimentação, que é calculada à parte por sindicato.
+ */
+export function salarioComAdicional(salary: Money, adicionalPercentual: Money): number {
+  const base = salary == null ? 0 : Number(salary);
+  const pct = adicionalPercentual == null ? 0 : Number(adicionalPercentual);
+  return base * (1 + pct / 100);
+}
+
+export interface CustoTotalBreakdown {
+  salario: number;
+  encargos: number;
+  vale: number;
+  total: number;
+}
+
+/**
+ * Custo total "carregado" de um colaborador, separado por natureza:
+ * - salário: salary + adicional (insalubridade/periculosidade) sobre o salário
+ * - encargos: planoSaude + planoOdontologico + seguroVida
+ * - vale: diária do sindicato x dias úteis do mês
  */
 export function calcularCustoTotalColaborador(input: {
   salary: Money;
+  adicionalPercentual?: Money;
   benefit?: { planoSaude: Money; planoOdontologico: Money; seguroVida: Money } | null;
   diariaRate: Money;
   diasUteis?: number;
-}): number {
+}): CustoTotalBreakdown {
   const n = (v: Money) => (v == null ? 0 : Number(v));
   const dias = input.diasUteis ?? diasUteisNoMes();
-  return (
-    n(input.salary) +
-    n(input.benefit?.planoSaude) +
-    n(input.benefit?.planoOdontologico) +
-    n(input.benefit?.seguroVida) +
-    n(input.diariaRate) * dias
-  );
+
+  const salario = salarioComAdicional(input.salary, input.adicionalPercentual);
+  const encargos = n(input.benefit?.planoSaude) + n(input.benefit?.planoOdontologico) + n(input.benefit?.seguroVida);
+  const vale = n(input.diariaRate) * dias;
+
+  return { salario, encargos, vale, total: salario + encargos + vale };
 }
 
 /**
@@ -64,10 +99,12 @@ export async function getEmployeeTotalCost(employeeId: string): Promise<number |
   const diariaRate = resolveDiariaRate(employee.project.sindicatoConfigs, employee.sindicato);
   const holidayDates = employee.project.holidayCalendar?.holidays.map((h) => h.date) ?? [];
 
-  return calcularCustoTotalColaborador({
+  const breakdown = calcularCustoTotalColaborador({
     salary: employee.salary,
+    adicionalPercentual: employee.adicionalPercentual,
     benefit: employee.salaryBenefit,
     diariaRate,
     diasUteis: diasUteisNoMes(new Date(), holidayDates),
   });
+  return breakdown.total;
 }

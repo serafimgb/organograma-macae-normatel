@@ -132,7 +132,7 @@ export function EfetivoTable({ employees, carteiras, bases, funcoes, showSalary,
           onValueChange={(v) => updateParam("base", v)}
         >
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="Base" />
+            <SelectValue placeholder="Lotação" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="_all_">Todas</SelectItem>
@@ -152,7 +152,7 @@ export function EfetivoTable({ employees, carteiras, bases, funcoes, showSalary,
               <TableHead>Nome</TableHead>
               <TableHead>Função</TableHead>
               <TableHead>Carteira</TableHead>
-              <TableHead>Base</TableHead>
+              <TableHead>Lotação</TableHead>
               <TableHead>Situação</TableHead>
               <TableHead>Admissão</TableHead>
               <TableHead>Demissão</TableHead>

@@ -70,6 +70,20 @@ export default async function DashboardPage({ params }: { params: { code: string
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([ano, admissoes]) => ({ ano, admissoes, desligamentos: 0 }));
 
+  // Headcount por lotação (Base)
+  const lotacaoMapRaw = new Map<string, { ativos: number; afastados: number; desligados: number }>();
+  for (const emp of allEmployees) {
+    const k = emp.base?.name ?? "Sem Lotação";
+    if (!lotacaoMapRaw.has(k)) lotacaoMapRaw.set(k, { ativos: 0, afastados: 0, desligados: 0 });
+    const l = lotacaoMapRaw.get(k)!;
+    if (emp.situacao === "ATIVO") l.ativos++;
+    else if (["AFASTADO", "FERIAS", "LICENCA"].includes(emp.situacao)) l.afastados++;
+    else l.desligados++;
+  }
+  const lotacaoData = [...lotacaoMapRaw.entries()]
+    .map(([name, counts]) => ({ name, ...counts }))
+    .sort((a, b) => b.ativos + b.afastados - (a.ativos + a.afastados));
+
   // Matriz carteira × base (top 5 carteiras ativas)
   const top5 = carteiraData
     .filter((c) => c.name !== "Sem Carteira")
@@ -201,11 +215,44 @@ export default async function DashboardPage({ params }: { params: { code: string
         </Card>
       </div>
 
-      {/* Carteira × Base */}
+      {/* Headcount por Lotação */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Headcount por Lotação</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {lotacaoData.length === 0 ? (
+            <p className="text-sm text-muted-foreground px-6 py-8 text-center">Nenhum dado disponível</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Lotação</TableHead>
+                  <TableHead className="text-right">Ativos</TableHead>
+                  <TableHead className="text-right">Afastados</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lotacaoData.map((l) => (
+                  <TableRow key={l.name}>
+                    <TableCell className="font-medium">{l.name}</TableCell>
+                    <TableCell className="text-right text-emerald-600">{l.ativos}</TableCell>
+                    <TableCell className="text-right text-amber-600">{l.afastados}</TableCell>
+                    <TableCell className="text-right font-semibold">{l.ativos + l.afastados}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Carteira × Lotação */}
       {matrizData.length > 0 && uniqueBases.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Carteira × Base (Top 5 carteiras)</CardTitle>
+            <CardTitle>Carteira × Lotação (Top 5 carteiras)</CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <MatrizCarteiraBase data={matrizData} bases={uniqueBases} />

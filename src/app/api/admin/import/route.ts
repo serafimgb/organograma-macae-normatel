@@ -58,6 +58,16 @@ function toNumber(raw: unknown): number | null {
   return isNaN(n) ? null : n;
 }
 
+/** Parseia a coluna ADICIONAL (insalubridade/periculosidade), aceitando "30%", "30" ou "0,3" — sempre normalizado para um percentual (ex: 30). */
+function toPercentual(raw: unknown): number | null {
+  if (raw === undefined || raw === null || raw === "") return null;
+  const str = String(raw).trim().replace("%", "").replace(",", ".");
+  const n = parseFloat(str);
+  if (isNaN(n)) return null;
+  // Se veio como fração (ex: 0.3 vindo de célula formatada como %), converte pra percentual
+  return n > 0 && n < 1 ? n * 100 : n;
+}
+
 /** Finds column value by trying multiple header aliases (case-insensitive, accent-insensitive) */
 function col(row: Record<string, unknown>, ...aliases: string[]): unknown {
   const keys = Object.keys(row);
@@ -86,33 +96,35 @@ export async function POST(req: NextRequest) {
   const projectByCode = new Map(projects.map((p) => [normalize(p.code), p]));
   const projectByName = new Map(projects.map((p) => [normalize(p.name), p]));
 
+  /** Extrai o sindicato (último trecho após hífen) de um texto "... - NOME-SINDICATO", se houver. */
+  function extractSindicato(raw: string): string | null {
+    const parts = raw.split("-");
+    if (parts.length < 2) return null;
+    return parts[parts.length - 1].trim() || null;
+  }
+
   /** A coluna PROJETO costuma vir como "PROJETO 736 - MANUTENCAO ... -SINDMETAL":
    *  extrai o código (736) em vez de comparar a string inteira, e também o
-   *  sindicato (último trecho após hífen), que hoje só é guardado — a lógica
-   *  de diária por sindicato entra quando os valores forem definidos. */
+   *  sindicato (último trecho após hífen), usado na diária de alimentação por sindicato. */
   function resolveProject(raw: string): { project: { id: string }; sindicato: string | null } | null {
     const normRaw = normalize(raw);
 
     const prefixMatch = raw.match(/PROJETO\s+([A-Za-zÀ-ú0-9-]+)\s*-?\s*(.*)/i);
     if (prefixMatch) {
       const hit = projectByCode.get(normalize(prefixMatch[1]));
-      if (hit) {
-        const rest = prefixMatch[2].split("-");
-        const sindicato = rest.length > 1 ? rest[rest.length - 1].trim() || null : null;
-        return { project: hit, sindicato };
-      }
+      if (hit) return { project: hit, sindicato: extractSindicato(prefixMatch[2]) };
     }
 
     const exactCode = projectByCode.get(normRaw);
-    if (exactCode) return { project: exactCode, sindicato: null };
+    if (exactCode) return { project: exactCode, sindicato: extractSindicato(raw) };
 
     for (const [code, project] of projectByCode) {
       const token = new RegExp(`(^|[^A-Z0-9])${code}([^A-Z0-9]|$)`);
-      if (token.test(normRaw)) return { project, sindicato: null };
+      if (token.test(normRaw)) return { project, sindicato: extractSindicato(raw) };
     }
 
     const nameHit = projectByName.get(normRaw);
-    return nameHit ? { project: nameHit, sindicato: null } : null;
+    return nameHit ? { project: nameHit, sindicato: extractSindicato(raw) } : null;
   }
 
   const buffer = await file.arrayBuffer();
@@ -140,7 +152,9 @@ export async function POST(req: NextRequest) {
         continue;
       }
       const projectId = resolved.project.id;
-      const sindicato = resolved.sindicato;
+      // Coluna SINDICATO explícita tem prioridade sobre o trecho extraído do texto do PROJETO.
+      const sindicatoCol = String(col(row, "SINDICATO") ?? "").trim();
+      const sindicato = sindicatoCol || resolved.sindicato;
 
       const chapa = normalize(col(row, "CHAPA", "MAT", "MATRICULA", "MATRÍCULA"));
       const nome = String(col(row, "NOME", "NOME COMPLETO", "COLABORADOR") ?? "").trim();
@@ -148,7 +162,9 @@ export async function POST(req: NextRequest) {
         col(row, "FUNÇÃO", "FUNCAO", "CARGO", "FUNÇÃO/CARGO", "FUNCAO/CARGO", "OCUPACAO", "OCUPAÇÃO") ?? ""
       ).trim();
       const carteiraName = String(col(row, "CARTEIRA", "GERÊNCIA", "GERENCIA", "SETOR") ?? "").trim();
-      const baseName = String(col(row, "BASE", "LOCAL", "LOCALIDADE", "UNIDADE") ?? "").trim();
+      const baseName = String(
+        col(row, "LOTAÇÃO", "LOTACAO", "BASE", "LOCAL", "LOCALIDADE", "UNIDADE") ?? ""
+      ).trim();
       const sitRaw = normalize(col(row, "SIT", "SITUAÇÃO", "SITUACAO", "STATUS", "SITUACAO ATUAL") ?? "ATIVO");
       const situacao: Situacao = SIT_MAP[sitRaw] ?? "ATIVO";
       const admissao = parseDate(col(row, "ADMISSÃO", "ADMISSAO", "DT ADMISSÃO", "DT ADMISSAO", "DATA ADMISSAO", "DATA ADMISSÃO"));
@@ -157,6 +173,7 @@ export async function POST(req: NextRequest) {
       const cpf = String(col(row, "CPF") ?? "").trim() || null;
       const sexo = normalizeSexo(col(row, "SEXO", "GENERO", "GÊNERO"));
       const salary = toNumber(col(row, "SALARIO ATUAL", "SALARIO", "SALÁRIO", "VENCIMENTO", "REMUNERACAO", "REMUNERAÇÃO"));
+      const adicionalPercentual = toPercentual(col(row, "ADICIONAL", "ADICIONAL %", "% ADICIONAL", "ADICIONAL INSALUBRIDADE/PERICULOSIDADE"));
 
       if (!chapa || !nome) {
         errors.push(`Linha ${lineNum}: CHAPA e NOME são obrigatórios`);
@@ -202,7 +219,6 @@ export async function POST(req: NextRequest) {
         cpf,
         sexo,
         nascimento,
-        sindicato,
         funcaoId: funcao.id,
         carteiraId: carteiraId ?? null,
         baseId: baseId ?? null,
@@ -210,6 +226,10 @@ export async function POST(req: NextRequest) {
         demissao: demissao ?? null,
         situacao,
         ...(salary !== null && { salary }),
+        ...(adicionalPercentual !== null && { adicionalPercentual }),
+        // Só sobrescreve o sindicato quando a planilha traz um valor novo — evita apagar
+        // um sindicato já resolvido antes caso essa linha não tenha o sufixo/coluna dessa vez.
+        ...(sindicato !== null && { sindicato }),
       };
 
       if (existing) {

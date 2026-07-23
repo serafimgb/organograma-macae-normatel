@@ -198,7 +198,7 @@ export function EmployeeFormDialog({ projectId, carteiras, bases, funcoes, emplo
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Base</label>
+              <label className="text-xs font-medium text-muted-foreground">Lotação</label>
               <Select
                 value={baseId || "_none_"}
                 onValueChange={(v) => setBaseId(v === "_none_" ? "" : v)}

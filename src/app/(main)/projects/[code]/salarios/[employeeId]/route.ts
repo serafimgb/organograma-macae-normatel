@@ -32,17 +32,25 @@ export async function PUT(
 
   try {
     const body = await req.json();
-    const { salary, planoSaude, planoOdontologico, seguroVida } = body;
+    const { salary, adicionalPercentual, planoSaude, planoOdontologico, seguroVida } = body;
 
-    if (salary !== undefined && salary !== null) {
-      await db.employee.update({ where: { id: employee.id }, data: { salary: Number(salary) } });
+    if (salary !== undefined || adicionalPercentual !== undefined) {
+      await db.employee.update({
+        where: { id: employee.id },
+        data: {
+          ...(salary !== undefined && { salary: salary === null ? null : Number(salary) }),
+          ...(adicionalPercentual !== undefined && {
+            adicionalPercentual: adicionalPercentual === null ? null : Number(adicionalPercentual),
+          }),
+        },
+      });
       await db.auditLog.create({
         data: {
           userId: session.user.id,
           action: "UPDATE_SALARY",
           entityType: "Employee",
           entityId: employee.id,
-          changes: { salary },
+          changes: { salary, adicionalPercentual },
         },
       });
     }
