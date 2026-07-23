@@ -253,6 +253,10 @@ model SalaryBenefit {
   planoSaude        Decimal? @db.Decimal(10, 2)
   planoOdontologico Decimal? @db.Decimal(10, 2)
   seguroVida        Decimal? @db.Decimal(10, 2)
+  // Valor de encargos já totalizado, vindo direto da coluna ENCARGOS da planilha de
+  // importação (quando a fonte não quebra em plano saúde/odontológico/seguro de vida
+  // separados) — soma-se aos três campos acima no cálculo do custo total.
+  encargosTotal     Decimal? @db.Decimal(10, 2)
   updatedAt         DateTime @updatedAt
 
   employee Employee @relation(fields: [employeeId], references: [id])

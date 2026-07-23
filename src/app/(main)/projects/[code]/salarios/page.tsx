@@ -138,7 +138,8 @@ export default async function SalariosPage({ params }: { params: { code: string 
     const planoSaude = emp.salaryBenefit?.planoSaude != null ? Number(emp.salaryBenefit.planoSaude) : null;
     const planoOdontologico = emp.salaryBenefit?.planoOdontologico != null ? Number(emp.salaryBenefit.planoOdontologico) : null;
     const seguroVida = emp.salaryBenefit?.seguroVida != null ? Number(emp.salaryBenefit.seguroVida) : null;
-    const encargos = (planoSaude ?? 0) + (planoOdontologico ?? 0) + (seguroVida ?? 0);
+    const encargosTotal = emp.salaryBenefit?.encargosTotal != null ? Number(emp.salaryBenefit.encargosTotal) : null;
+    const encargos = (planoSaude ?? 0) + (planoOdontologico ?? 0) + (seguroVida ?? 0) + (encargosTotal ?? 0);
     const diaria = diariaInfoOf(emp);
     const vale = diaria.rate * diasUteis;
     const custoTotal = (salarioTotal ?? 0) + encargos + vale;
@@ -162,6 +163,7 @@ export default async function SalariosPage({ params }: { params: { code: string 
       planoSaude,
       planoOdontologico,
       seguroVida,
+      encargosTotal,
       encargos,
       custoTotal,
     };

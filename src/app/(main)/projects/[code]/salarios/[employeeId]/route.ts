@@ -32,7 +32,7 @@ export async function PUT(
 
   try {
     const body = await req.json();
-    const { salary, adicionalPercentual, planoSaude, planoOdontologico, seguroVida } = body;
+    const { salary, adicionalPercentual, planoSaude, planoOdontologico, seguroVida, encargosTotal } = body;
 
     if (salary !== undefined || adicionalPercentual !== undefined) {
       await db.employee.update({
@@ -55,11 +55,12 @@ export async function PUT(
       });
     }
 
-    if (planoSaude !== undefined || planoOdontologico !== undefined || seguroVida !== undefined) {
+    if (planoSaude !== undefined || planoOdontologico !== undefined || seguroVida !== undefined || encargosTotal !== undefined) {
       const benefitData = {
         ...(planoSaude !== undefined && { planoSaude: Number(planoSaude) }),
         ...(planoOdontologico !== undefined && { planoOdontologico: Number(planoOdontologico) }),
         ...(seguroVida !== undefined && { seguroVida: Number(seguroVida) }),
+        ...(encargosTotal !== undefined && { encargosTotal: Number(encargosTotal) }),
       };
       await db.salaryBenefit.upsert({
         where: { employeeId: employee.id },

@@ -21,6 +21,11 @@ const SIT_MAP: Record<string, Situacao> = {
   LIC: "LICENCA",
   DES: "DESLIGADO",
   AT: "ATIVO",
+  // Códigos de uma letra usados na planilha real (aba EFETIVO): A=ativo, D=desligado,
+  // F=férias. Sem esses, "D" e "A" caem no default "ATIVO" e desligados somem da conta.
+  A: "ATIVO",
+  D: "DESLIGADO",
+  F: "FERIAS",
 };
 
 function parseDate(raw: unknown): Date | null {
@@ -174,6 +179,9 @@ export async function POST(req: NextRequest) {
       const sexo = normalizeSexo(col(row, "SEXO", "GENERO", "GÊNERO"));
       const salary = toNumber(col(row, "SALARIO ATUAL", "SALARIO", "SALÁRIO", "VENCIMENTO", "REMUNERACAO", "REMUNERAÇÃO"));
       const adicionalPercentual = toPercentual(col(row, "ADICIONAL", "ADICIONAL %", "% ADICIONAL", "ADICIONAL INSALUBRIDADE/PERICULOSIDADE"));
+      // ENCARGOS: total já somado de plano saúde + odontológico + seguro de vida, quando a
+      // planilha não quebra em colunas separadas pra cada benefício.
+      const encargosTotal = toNumber(col(row, "ENCARGOS", "ENCARGOS TOTAL", "TOTAL ENCARGOS"));
 
       if (!chapa || !nome) {
         errors.push(`Linha ${lineNum}: CHAPA e NOME são obrigatórios`);
@@ -232,12 +240,23 @@ export async function POST(req: NextRequest) {
         ...(sindicato !== null && { sindicato }),
       };
 
+      let employeeId: string;
       if (existing) {
         await db.employee.update({ where: { id: existing.id }, data: payload });
+        employeeId = existing.id;
         updated++;
       } else {
-        await db.employee.create({ data: { chapa, projectId, ...payload } });
+        const created_ = await db.employee.create({ data: { chapa, projectId, ...payload } });
+        employeeId = created_.id;
         created++;
+      }
+
+      if (encargosTotal !== null) {
+        await db.salaryBenefit.upsert({
+          where: { employeeId },
+          update: { encargosTotal },
+          create: { employeeId, encargosTotal },
+        });
       }
 
       await db.auditLog.create({

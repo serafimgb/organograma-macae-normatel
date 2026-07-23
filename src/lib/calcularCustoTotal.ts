@@ -69,7 +69,7 @@ export interface CustoTotalBreakdown {
 export function calcularCustoTotalColaborador(input: {
   salary: Money;
   adicionalPercentual?: Money;
-  benefit?: { planoSaude: Money; planoOdontologico: Money; seguroVida: Money } | null;
+  benefit?: { planoSaude: Money; planoOdontologico: Money; seguroVida: Money; encargosTotal?: Money } | null;
   diariaRate: Money;
   diasUteis?: number;
 }): CustoTotalBreakdown {
@@ -77,7 +77,11 @@ export function calcularCustoTotalColaborador(input: {
   const dias = input.diasUteis ?? diasUteisNoMes();
 
   const salario = salarioComAdicional(input.salary, input.adicionalPercentual);
-  const encargos = n(input.benefit?.planoSaude) + n(input.benefit?.planoOdontologico) + n(input.benefit?.seguroVida);
+  const encargos =
+    n(input.benefit?.planoSaude) +
+    n(input.benefit?.planoOdontologico) +
+    n(input.benefit?.seguroVida) +
+    n(input.benefit?.encargosTotal);
   const vale = n(input.diariaRate) * dias;
 
   return { salario, encargos, vale, total: salario + encargos + vale };

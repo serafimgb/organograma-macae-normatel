@@ -38,6 +38,8 @@ export interface SalaryEmployeeRow {
   planoSaude: number | null;
   planoOdontologico: number | null;
   seguroVida: number | null;
+  /** valor de encargos já totalizado, vindo da coluna ENCARGOS da planilha de importação */
+  encargosTotal: number | null;
   encargos: number;
   custoTotal: number;
 }
@@ -63,9 +65,11 @@ export function SalaryEmployeeTable({
   const [planoSaude, setPlanoSaude] = useState("");
   const [planoOdontologico, setPlanoOdontologico] = useState("");
   const [seguroVida, setSeguroVida] = useState("");
+  const [encargosTotal, setEncargosTotal] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [nomeFilter, setNomeFilter] = useState("");
   const [lotacaoFilter, setLotacaoFilter] = useState(ALL);
   const [carteiraFilter, setCarteiraFilter] = useState(ALL);
   const [sindicatoFilter, setSindicatoFilter] = useState(ALL);
@@ -85,6 +89,7 @@ export function SalaryEmployeeTable({
 
   const filtered = employees.filter(
     (e) =>
+      (nomeFilter.trim() === "" || e.nome.toLowerCase().includes(nomeFilter.trim().toLowerCase())) &&
       (lotacaoFilter === ALL || e.base === lotacaoFilter) &&
       (carteiraFilter === ALL || e.carteira === carteiraFilter) &&
       (sindicatoFilter === ALL || e.sindicato === sindicatoFilter)
@@ -99,10 +104,11 @@ export function SalaryEmployeeTable({
       planoSaude: acc.planoSaude + (e.planoSaude ?? 0),
       planoOdontologico: acc.planoOdontologico + (e.planoOdontologico ?? 0),
       seguroVida: acc.seguroVida + (e.seguroVida ?? 0),
+      encargosTotal: acc.encargosTotal + (e.encargosTotal ?? 0),
       encargos: acc.encargos + e.encargos,
       custoTotal: acc.custoTotal + e.custoTotal,
     }),
-    { salary: 0, valorAdicional: 0, salarioTotal: 0, vale: 0, planoSaude: 0, planoOdontologico: 0, seguroVida: 0, encargos: 0, custoTotal: 0 }
+    { salary: 0, valorAdicional: 0, salarioTotal: 0, vale: 0, planoSaude: 0, planoOdontologico: 0, seguroVida: 0, encargosTotal: 0, encargos: 0, custoTotal: 0 }
   );
 
   function openEmployee(emp: SalaryEmployeeRow) {
@@ -113,6 +119,7 @@ export function SalaryEmployeeTable({
     setPlanoSaude(emp.planoSaude?.toString() ?? "");
     setPlanoOdontologico(emp.planoOdontologico?.toString() ?? "");
     setSeguroVida(emp.seguroVida?.toString() ?? "");
+    setEncargosTotal(emp.encargosTotal?.toString() ?? "");
     setError(null);
   }
 
@@ -130,6 +137,7 @@ export function SalaryEmployeeTable({
           planoSaude: planoSaude === "" ? undefined : Number(planoSaude),
           planoOdontologico: planoOdontologico === "" ? undefined : Number(planoOdontologico),
           seguroVida: seguroVida === "" ? undefined : Number(seguroVida),
+          encargosTotal: encargosTotal === "" ? undefined : Number(encargosTotal),
         }),
       });
       if (!res.ok) {
@@ -158,6 +166,12 @@ export function SalaryEmployeeTable({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Input
+                value={nomeFilter}
+                onChange={(e) => setNomeFilter(e.target.value)}
+                placeholder="Buscar colaborador..."
+                className="w-56"
+              />
               <Select value={lotacaoFilter} onValueChange={setLotacaoFilter}>
                 <SelectTrigger className="w-44">
                   <SelectValue placeholder="Lotação" />
@@ -213,6 +227,7 @@ export function SalaryEmployeeTable({
                     <TableHead className="text-right">Plano Saúde</TableHead>
                     <TableHead className="text-right">Plano Odonto</TableHead>
                     <TableHead className="text-right">Seguro Vida</TableHead>
+                    <TableHead className="text-right">Encargos (planilha)</TableHead>
                     <TableHead className="text-right bg-sky-50/60 dark:bg-sky-950/20">Encargos Total</TableHead>
                     <TableHead className="text-right bg-muted font-semibold">Custo Total</TableHead>
                   </TableRow>
@@ -278,6 +293,9 @@ export function SalaryEmployeeTable({
                       <TableCell className="text-right font-mono text-sm">
                         {emp.seguroVida != null ? fmt(emp.seguroVida) : <span className="text-muted-foreground">-</span>}
                       </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {emp.encargosTotal != null ? fmt(emp.encargosTotal) : <span className="text-muted-foreground">-</span>}
+                      </TableCell>
                       <TableCell className="text-right font-mono text-sm font-medium bg-sky-50/40 dark:bg-sky-950/10">
                         {fmt(emp.encargos)}
                       </TableCell>
@@ -286,7 +304,7 @@ export function SalaryEmployeeTable({
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={18} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={19} className="text-center text-muted-foreground py-8">
                         Nenhum colaborador encontrado com esses filtros
                       </TableCell>
                     </TableRow>
@@ -308,6 +326,7 @@ export function SalaryEmployeeTable({
                       <TableCell className="text-right font-mono">{fmt(totals.planoSaude)}</TableCell>
                       <TableCell className="text-right font-mono">{fmt(totals.planoOdontologico)}</TableCell>
                       <TableCell className="text-right font-mono">{fmt(totals.seguroVida)}</TableCell>
+                      <TableCell className="text-right font-mono">{fmt(totals.encargosTotal)}</TableCell>
                       <TableCell className="text-right font-mono bg-sky-100/60 dark:bg-sky-950/30">{fmt(totals.encargos)}</TableCell>
                       <TableCell className="text-right font-mono bg-muted">{fmt(totals.custoTotal)}</TableCell>
                     </TableRow>
@@ -353,9 +372,16 @@ export function SalaryEmployeeTable({
                 <Input type="number" step="0.01" min="0" value={planoOdontologico} onChange={(e) => setPlanoOdontologico(e.target.value)} placeholder="0,00" />
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Seguro de Vida</label>
-              <Input type="number" step="0.01" min="0" value={seguroVida} onChange={(e) => setSeguroVida(e.target.value)} placeholder="0,00" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Seguro de Vida</label>
+                <Input type="number" step="0.01" min="0" value={seguroVida} onChange={(e) => setSeguroVida(e.target.value)} placeholder="0,00" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Encargos (planilha)</label>
+                <Input type="number" step="0.01" min="0" value={encargosTotal} onChange={(e) => setEncargosTotal(e.target.value)} placeholder="0,00" />
+                <p className="text-[10px] text-muted-foreground">Total já somado, vindo da coluna ENCARGOS da importação</p>
+              </div>
             </div>
             {selected && (
               <div className="rounded-md border p-3 text-xs space-y-1 bg-muted/40">
